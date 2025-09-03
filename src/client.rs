@@ -1668,11 +1668,19 @@ impl VideoHandler {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HashSalt {
+    hash: Vec<u8>,
+    salt: String,
+}
+
 // The source of sent password
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 enum PasswordSource {
     PersonalAb(Vec<u8>),
     SharedAb(String),
+    AbDefault(HashSalt),
+    DefaultConnect(String),
     Undefined,
 }
 
@@ -1705,6 +1713,26 @@ impl PasswordSource {
         }
     }
 
+    pub fn is_ab_default(&self, password: &[u8]) -> bool {
+        if password.is_empty() {
+            return false;
+        }
+        match self {
+            PasswordSource::AbDefault(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_default_connect(&self, password: &[u8], hash: &Hash) -> bool {
+        if password.is_empty() {
+            return false;
+        }
+        match self {
+            PasswordSource::DefaultConnect(p) => Self::equal(p, password, hash),
+            _ => false,
+        }
+    }
+
     //  Whether the password equals to the connected password
     fn equal(password: &str, connected_password: &[u8], hash: &Hash) -> bool {
         let mut hasher = Sha256::new();
@@ -1720,6 +1748,13 @@ struct ConnToken {
     password: Vec<u8>,
     password_source: PasswordSource,
     session_id: u64,
+}
+
+#[derive(Debug)]
+pub enum InitialPassword {
+    Preset(String),
+    SharedAb(String),
+    AbDefault(HashSalt),
 }
 
 /// Login config handler for [`Client`].
@@ -1751,7 +1786,7 @@ pub struct LoginConfigHandler {
     pub selected_windows_session_id: Option<u32>,
     pub peer_info: Option<PeerInfo>,
     password_source: PasswordSource, // where the sent password comes from
-    shared_password: Option<String>, // Store the shared password
+    initial_password: Option<InitialPassword>, // Store the password passed from ui to start a session
     pub enable_trusted_devices: bool,
     pub record_state: bool,
     pub record_permission: bool,
@@ -1779,7 +1814,7 @@ impl LoginConfigHandler {
         switch_uuid: Option<String>,
         mut force_relay: bool,
         adapter_luid: Option<i64>,
-        shared_password: Option<String>,
+        initial_password: Option<InitialPassword>,
         conn_token: Option<String>,
     ) {
         let mut id = id;
@@ -1861,7 +1896,7 @@ impl LoginConfigHandler {
         self.switch_uuid = switch_uuid;
         self.adapter_luid = adapter_luid;
         self.selected_windows_session_id = None;
-        self.shared_password = shared_password;
+        self.initial_password = initial_password;
         self.record_state = false;
         self.record_permission = true;
 
@@ -2511,6 +2546,8 @@ impl LoginConfigHandler {
             if !password.is_empty()
                 && password != password0
                 && !self.password_source.is_shared_ab(&password, &hash)
+                && !self.password_source.is_default_connect(&password, &hash)
+                && !self.password_source.is_ab_default(&password)
             {
                 config.password = password.clone();
                 log::debug!("remember password of {}", self.id);
@@ -2543,6 +2580,8 @@ impl LoginConfigHandler {
             if !config.password.is_empty()
                 && !self.password_source.is_shared_ab(&password, &hash)
                 && !self.password_source.is_personal_ab(&password)
+                && !self.password_source.is_default_connect(&password, &hash)
+                && !self.password_source.is_ab_default(&password)
             {
                 let hash = base64::encode(config.password.clone(), base64::Variant::Original);
                 let evt: HashMap<&str, String> = HashMap::from([
@@ -2654,6 +2693,10 @@ impl LoginConfigHandler {
         } else {
             Bytes::new()
         };
+        let salt = match &self.password_source {
+            PasswordSource::AbDefault(hs) => hs.salt.clone(),
+            _ => "".to_owned(),
+        };
         let mut lr = LoginRequest {
             username: pure_id,
             password: password.into(),
@@ -2670,6 +2713,7 @@ impl LoginConfigHandler {
             })
             .into(),
             hwid,
+            salt,
             ..Default::default()
         };
         match self.conn_type {
@@ -3388,15 +3432,15 @@ pub async fn handle_hash(
     }
     // shared password
     // Currently it's used only when click shared ab peer card
-    let shared_password = lc.write().unwrap().shared_password.take();
-    if let Some(shared_password) = shared_password {
+    let initial_password = lc.write().unwrap().initial_password.take();
+    if let Some(InitialPassword::SharedAb(shared_password)) = &initial_password {
         if !shared_password.is_empty() {
             let mut hasher = Sha256::new();
             hasher.update(shared_password.clone());
             hasher.update(&hash.salt);
             let res = hasher.finalize();
             password = res[..].into();
-            lc.write().unwrap().password_source = PasswordSource::SharedAb(shared_password);
+            lc.write().unwrap().password_source = PasswordSource::SharedAb(shared_password.clone());
         }
     }
     // peer config password
@@ -3411,6 +3455,20 @@ pub async fn handle_hash(
         try_get_password_from_personal_ab(lc.clone(), &mut password);
     }
 
+    // ab default password
+    if password.is_empty() {
+        if let Some(InitialPassword::AbDefault(hs)) = &initial_password {
+            if hash.support_controlling_salt && !hs.hash.is_empty() && !hs.salt.is_empty() {
+                let mut hasher = Sha256::new();
+                hasher.update(hs.hash.clone());
+                hasher.update(&hash.salt);
+                let res = hasher.finalize();
+                password = res[..].into();
+                lc.write().unwrap().password_source = PasswordSource::AbDefault(hs.clone());
+            }
+        }
+    }
+
     if password.is_empty() {
         let p = crate::ui_interface::get_builtin_option(keys::OPTION_DEFAULT_CONNECT_PASSWORD);
         if !p.is_empty() {
@@ -3419,7 +3477,7 @@ pub async fn handle_hash(
             hasher.update(&hash.salt);
             let res = hasher.finalize();
             password = res[..].into();
-            lc.write().unwrap().password_source = PasswordSource::SharedAb(p); // reuse SharedAb here
+            lc.write().unwrap().password_source = PasswordSource::DefaultConnect(p);
         }
     }
 
