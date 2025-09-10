@@ -104,6 +104,7 @@ git commit -m "Sync local changes in super repo" 1>nul 2>nul
 :: 规范化父仓库 origin URL（移除可能存在的反引号字符）
 for /f "delims=" %%u in ('git remote get-url origin 2^>nul') do set "CUR_ORIGIN_URL=%%u"
 set "CLEAN_ORIGIN_URL=!CUR_ORIGIN_URL:`=!"
+set "CLEAN_ORIGIN_URL=!CLEAN_ORIGIN_URL: =!"
 if not "!CLEAN_ORIGIN_URL!"=="!CUR_ORIGIN_URL!" (
   echo [parent] normalizing origin url: !CLEAN_ORIGIN_URL!
   git remote set-url origin "!CLEAN_ORIGIN_URL!"
