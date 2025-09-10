@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 
 :: ===== 配置 =====
 set REPO_ROOT=C:\Users\Jerry\Desktop\rustdesk\rustdesk
-set SUBMODULE_PATH=C:\Users\Jerry\Desktop\rustdesk\rustdesk\libs\hbb_common
+set SUBMODULE_PATH=libs\hbb_common
 set SUBMODULE_BRANCH=main
 set SUBMODULE_REMOTE_URL=https://github.com/alalbb313/hbb_common.git
 
@@ -42,7 +42,7 @@ if "%HAS_DOTGIT%"=="0" (
   git commit -m "Initial import from super repo" || echo [submodule] nothing to commit for initial import
   git branch -M "%SUBMODULE_BRANCH%"
   git remote add origin "%SUBMODULE_REMOTE_URL%" 1>nul 2>nul || git remote set-url origin "%SUBMODULE_REMOTE_URL%"
-  git push -u origin "%SUBMODULE_BRANCH%" || echo [submodule] initial push may be up to date
+  git push -u origin "refs/heads/%SUBMODULE_BRANCH%:refs/heads/%SUBMODULE_BRANCH%" || echo [submodule] initial push may be up to date
   popd
 ) else (
   echo [convert] existing nested git detected; syncing it to remote
@@ -60,7 +60,7 @@ if "%HAS_DOTGIT%"=="0" (
   git merge --ff-only origin/%SUBMODULE_BRANCH% 1>nul 2>nul
   git add -A
   git commit -m "Sync local changes before submodule conversion" || echo [submodule] no changes to commit
-  git push -u origin "%SUBMODULE_BRANCH%" || echo [submodule] push up to date
+  git push -u origin "refs/heads/%SUBMODULE_BRANCH%:refs/heads/%SUBMODULE_BRANCH%" || echo [submodule] push up to date
   popd
 )
 
@@ -92,15 +92,24 @@ if not defined CURBR (
 git merge --ff-only origin/%SUBMODULE_BRANCH% 1>nul 2>nul
 git add -A
 git commit -m "Sync local changes in hbb_common" 1>nul 2>nul
-git push -u origin "%SUBMODULE_BRANCH%" || echo [submodule] push up to date
+git push -u origin "refs/heads/%SUBMODULE_BRANCH%:refs/heads/%SUBMODULE_BRANCH%" || echo [submodule] push up to date
 popd
 
 echo [sync] recording new submodule pointer and pushing parent
 git add "%SUBMODULE_PATH%"
-git commit -m "Bump hbb_common submodule pointer" 
+git commit -m "Bump hbb_common submodule pointer" 1>nul 2>nul
 git add -A
 git commit -m "Sync local changes in super repo" 1>nul 2>nul
-git push origin "%PARENT_BRANCH%" || echo [parent] push up to date
+
+:: 规范化父仓库 origin URL（移除可能存在的反引号字符）
+for /f "delims=" %%u in ('git remote get-url origin 2^>nul') do set "CUR_ORIGIN_URL=%%u"
+set "CLEAN_ORIGIN_URL=!CUR_ORIGIN_URL:`=!"
+if not "!CLEAN_ORIGIN_URL!"=="!CUR_ORIGIN_URL!" (
+  echo [parent] normalizing origin url: !CLEAN_ORIGIN_URL!
+  git remote set-url origin "!CLEAN_ORIGIN_URL!"
+)
+
+git push origin "refs/heads/%PARENT_BRANCH%:refs/heads/%PARENT_BRANCH%" || echo [parent] push up to date
 
 if not "%TAG_NAME%"=="" (
   echo [parent] tagging %TAG_NAME%
