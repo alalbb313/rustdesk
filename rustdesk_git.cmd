@@ -97,7 +97,7 @@ popd
 
 echo [sync] recording new submodule pointer and pushing parent
 git add "%SUBMODULE_PATH%"
-git commit -m "Bump hbb_common submodule pointer" 1>nul 2>nul
+git commit -m "Bump hbb_common submodule pointer" 
 git add -A
 git commit -m "Sync local changes in super repo" 1>nul 2>nul
 git push origin "%PARENT_BRANCH%" || echo [parent] push up to date
