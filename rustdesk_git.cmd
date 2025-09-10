@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 
 :: ===== 配置 =====
 set REPO_ROOT=C:\Users\Jerry\Desktop\rustdesk\rustdesk
-set SUBMODULE_PATH=libs\hbb_common
+set SUBMODULE_PATH=C:\Users\Jerry\Desktop\rustdesk\rustdesk\libs\hbb_common
 set SUBMODULE_BRANCH=main
 set SUBMODULE_REMOTE_URL=https://github.com/alalbb313/hbb_common.git
 
