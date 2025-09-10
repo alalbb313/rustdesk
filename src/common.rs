@@ -1047,7 +1047,15 @@ pub fn get_ipv6_punch_enabled() -> bool {
 }
 
 pub fn get_local_option(key: &str) -> String {
-    LocalConfig::get_option(key)
+    let v = LocalConfig::get_option(key);
+    if (key == keys::OPTION_ENABLE_IPV6_PUNCH || key == keys::OPTION_ENABLE_UDP_PUNCH)
+        && v.is_empty()
+        && !using_public_server()
+    {
+        "N".to_owned()
+    } else {
+        v
+    }
 }
 
 pub fn get_audit_server(api: String, custom: String, typ: String) -> String {
