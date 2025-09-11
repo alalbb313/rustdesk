@@ -1,0 +1,12 @@
+cd "C:\Users\Jerry\Desktop\rustdesk\rustdesk"
+git add . -f
+git commit -m "add build"
+git push -f
+git tag -d 1.4.2
+git push -f origin :refs/tags/1.4.2
+git tag -a 1.4.2 -m "Release with new defaults"
+git push origin --tags
+
+
+
+1.参考设置界面的"常规"选项卡中默认勾选并启用的"自适应码率"的方式,默认勾选并启用"启用 UPD 打洞"和"启用IPv6 P2P  连接".   2.参考设置界面的"安全"选项卡中默认勾选并启用的"允许传输文件"的方式,默认勾选并启用"允许远程修改配置".   3.参考设置界面的"显示"选项卡中默认勾选并启用"允许复制粘贴文件"的方式,默认勾选并启用"折叠工具栏".    你可以直接修改代码, 这些项目默认勾选并开启, 用户可以手动取消勾选并禁用.
