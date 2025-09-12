@@ -1539,49 +1539,6 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
     ThrottledInterval::new(i)
 }
 
-// Insert default settings for specific options if not already provided by custom config or overrides
-fn inject_default_settings() {
-    // Ensure default for collapse_toolbar (display setting) is "N"
-    {
-        let key = keys::OPTION_COLLAPSE_TOOLBAR;
-        let already_set = {
-            let ow = config::OVERWRITE_DISPLAY_SETTINGS.read().unwrap();
-            if ow.contains_key(key) {
-                true
-            } else {
-                let df = config::DEFAULT_DISPLAY_SETTINGS.read().unwrap();
-                df.contains_key(key)
-            }
-        };
-        if !already_set {
-            config::DEFAULT_DISPLAY_SETTINGS
-                .write()
-                .unwrap()
-                .insert(key.to_string(), "N".to_string());
-        }
-    }
-
-    // Ensure default for allow-remote-config-modification (server setting) is "N"
-    {
-        let key = keys::OPTION_ALLOW_REMOTE_CONFIG_MODIFICATION;
-        let already_set = {
-            let ow = config::OVERWRITE_SETTINGS.read().unwrap();
-            if ow.contains_key(key) {
-                true
-            } else {
-                let df = config::DEFAULT_SETTINGS.read().unwrap();
-                df.contains_key(key)
-            }
-        };
-        if !already_set {
-            config::DEFAULT_SETTINGS
-                .write()
-                .unwrap()
-                .insert(key.to_string(), "N".to_string());
-        }
-    }
-}
-
 pub fn load_custom_client() {
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
@@ -1602,8 +1559,6 @@ pub fn load_custom_client() {
         };
         read_custom_client(&data.trim());
     }
-    // Always inject default settings so that even without custom.txt, we have expected defaults
-    inject_default_settings();
 }
 
 fn read_custom_client_advanced_settings(
@@ -1753,8 +1708,6 @@ pub fn read_custom_client(config: &str) {
                 .insert(k, v.to_owned());
         };
     }
-    // Ensure defaults for options not provided by custom config
-    inject_default_settings();
 }
 
 #[inline]
