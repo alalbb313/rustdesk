@@ -758,11 +758,13 @@ impl Client {
         key: &str,
         conn: &mut Stream,
     ) -> ResultType<Option<Vec<u8>>> {
-        let rs_pk = get_rs_pk(if key.is_empty() {
-            &Config::get_key()
+        let default_key = Config::get_key();
+        let key_to_use = if key.is_empty() {
+            &default_key
         } else {
             key
-        });
+        };
+        let rs_pk = get_rs_pk(key_to_use);
         let mut sign_pk = None;
         let mut option_pk = None;
         if !signed_id_pk.is_empty() {
