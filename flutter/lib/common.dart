@@ -9,6 +9,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/formatter/id_formatter.dart';
+
+// Default option getters for UI defaults
+String get defaultOptionAccessMode => isCustomClient ? '' : 'full';
+String get defaultOptionEnableUdpPunch => isCustomClient ? '' : 'Y';
+String get defaultOptionEnableIpv6Punch => isCustomClient ? '' : 'Y';
+String get defaultOptionAllowInsecureTlsFallback => isCustomClient ? '' : 'Y';
+String get defaultOptionCollapseToolbar => isCustomClient ? '' : 'Y';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/main.dart';
