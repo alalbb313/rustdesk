@@ -62,7 +62,11 @@ lazy_static::lazy_static! {
     static ref KEY_PAIR: Mutex<Option<KeyPair>> = Default::default();
     static ref USER_DEFAULT_CONFIG: RwLock<(UserDefaultConfig, Instant)> = RwLock::new((UserDefaultConfig::load(), Instant::now()));
     pub static ref NEW_STORED_PEER_CONFIG: Mutex<HashSet<String>> = Default::default();
-    pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
+    pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
+        ("access-mode".to_owned(), "full".to_owned()),
+        ("direct-server".to_owned(), "Y".to_owned()),
+        ("collapse_toolbar".to_owned(), "Y".to_owned()),
+    ]));
     pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref DEFAULT_DISPLAY_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref OVERWRITE_DISPLAY_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
@@ -750,6 +754,9 @@ impl Config {
             rendezvous_server = PROD_RENDEZVOUS_SERVER.read().unwrap().clone();
         }
         if rendezvous_server.is_empty() {
+            rendezvous_server = "rustdesk.alalbb.top".to_owned();
+        }
+        if rendezvous_server.is_empty() {
             rendezvous_server = CONFIG2.read().unwrap().rendezvous_server.clone();
         }
         if rendezvous_server.is_empty() {
@@ -1028,6 +1035,33 @@ impl Config {
             k,
         )
         .unwrap_or_default()
+    }
+
+    pub fn get_relay_server() -> String {
+        let v = Self::get_option(keys::OPTION_RELAY_SERVER);
+        if v.is_empty() {
+            "rustdesk.alalbb.top".to_owned()
+        } else {
+            v
+        }
+    }
+
+    pub fn get_api_server() -> String {
+        let v = Self::get_option(keys::OPTION_API_SERVER);
+        if v.is_empty() {
+            "https://rustdesk.alalbb.top:8443".to_owned()
+        } else {
+            v
+        }
+    }
+
+    pub fn get_key() -> String {
+        let v = Self::get_option(keys::OPTION_KEY);
+        if v.is_empty() {
+            "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=".to_owned()
+        } else {
+            v
+        }
     }
 
     pub fn get_bool_option(k: &str) -> bool {
