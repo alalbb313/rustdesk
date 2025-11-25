@@ -66,7 +66,6 @@ jobs:
     name: ${{ matrix.job.target }}
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
-    if: ${{ github.ref_type != 'tag' || matrix.job.target == 'x86_64-pc-windows-msvc' }}
     strategy:
       fail-fast: false
       matrix:
@@ -286,7 +285,6 @@ jobs:
   build-for-windows-sciter:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
-    if: ${{ github.ref_type != 'tag' }}
     # Temporarily disable this action due to additional test is needed.
     # if: false
     strategy:
@@ -435,7 +433,7 @@ jobs:
             ./SignOutput/rustdesk-*.exe
 
   build-rustdesk-ios:
-    if: ${{ inputs.upload-artifact && github.ref_type != 'tag' }}
+    if: ${{ inputs.upload-artifact }}
     name: build rustdesk ios ipa
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -555,7 +553,6 @@ jobs:
 
 
   build-for-macOS:
-    if: ${{ github.ref_type != 'tag' || matrix.job.target == 'aarch64-apple-darwin' }}
     name: ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -768,7 +765,7 @@ jobs:
       - build-for-windows-flutter
       - build-for-windows-sciter
     runs-on: ubuntu-latest
-    if: ${{ inputs.upload-artifact && github.ref_type != 'tag' }}
+    if: ${{ inputs.upload-artifact }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@master
@@ -809,7 +806,6 @@ jobs:
     needs: [generate-bridge]
     name: build rustdesk android apk ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
-    if: ${{ github.ref_type != 'tag' }}
     strategy:
       fail-fast: false
       matrix:
@@ -1101,7 +1097,7 @@ jobs:
   build-rustdesk-android-universal:
     needs: [build-rustdesk-android]
     name: build rustdesk android universal apk
-    if: ${{ inputs.upload-artifact && github.ref_type != 'tag' }}
+    if: ${{ inputs.upload-artifact }}
     runs-on: ubuntu-24.04
     env:
       reltype: release
@@ -1286,7 +1282,6 @@ jobs:
     needs: [generate-bridge]
     name: build rustdesk linux ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.on }}
-    if: ${{ github.ref_type != 'tag' }}
     strategy:
       fail-fast: false
       matrix:
@@ -1621,7 +1616,7 @@ jobs:
             res/rustdesk-${{ env.VERSION }}*.zst
 
   build-rustdesk-linux-sciter:
-    if: ${{ inputs.upload-artifact && github.ref_type != 'tag' }}
+    if: ${{ inputs.upload-artifact }}
     runs-on: ${{ matrix.job.on }}
     name: build-rustdesk-linux-sciter ${{ matrix.job.target }}
     strategy:
@@ -1851,7 +1846,7 @@ jobs:
     name: Build appimage ${{ matrix.job.target }}
     needs: [build-rustdesk-linux]
     runs-on: ubuntu-22.04
-    if: ${{ inputs.upload-artifact && github.ref_type != 'tag' }}
+    if: ${{ inputs.upload-artifact }}
     strategy:
       fail-fast: false
       matrix:
@@ -1903,7 +1898,7 @@ jobs:
       - build-rustdesk-linux
       - build-rustdesk-linux-sciter
     runs-on: ${{ matrix.job.on }}
-    if: ${{ inputs.upload-artifact && github.ref_type != 'tag' }}
+    if: ${{ inputs.upload-artifact }}
     strategy:
       fail-fast: false
       matrix:
