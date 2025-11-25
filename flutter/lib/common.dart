@@ -2856,10 +2856,10 @@ class ServerConfig {
 
   /// from local options
   ServerConfig.fromOptions(Map<String, dynamic> options)
-      : idServer = options['custom-rendezvous-server'] ?? "rustdesk.alalbb.top",
-        relayServer = options['relay-server'] ?? "rustdesk.alalbb.top",
-        apiServer = options['api-server'] ?? "https://rustdesk.alalbb.top:8443",
-        key = options['key'] ?? "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=";
+      : idServer = options['custom-rendezvous-server'] ?? '',
+        relayServer = options['relay-server'] ?? '',
+        apiServer = options['api-server'] ?? '',
+        key = options['key'] ?? '';
 }
 
 Widget dialogButton(String text,
@@ -3788,15 +3788,15 @@ bool get isCustomClient {
   return _isCustomClient!;
 }
 
-get defaultOptionLang => isCustomClient ? 'default' : '';
-get defaultOptionTheme => isCustomClient ? 'system' : '';
-get defaultOptionYes => isCustomClient ? 'Y' : '';
-get defaultOptionNo => isCustomClient ? 'N' : '';
-get defaultOptionWhitelist => isCustomClient ? ',' : '';
-get defaultOptionAccessMode => isCustomClient ? 'full' : '';
-get defaultOptionApproveMode => isCustomClient ? 'password-click' : '';
-get defaultOptionDirectServer => isCustomClient ? 'Y' : '';
-get defaultOptionCollapseToolbar => isCustomClient ? 'Y' : '';
+get defaultOptionLang => 'default';
+get defaultOptionTheme => 'system';
+get defaultOptionYes => 'Y';
+get defaultOptionNo => 'N';
+get defaultOptionWhitelist => ',';
+get defaultOptionAccessMode => 'full';
+get defaultOptionApproveMode => 'password-click';
+get defaultOptionDirectServer => 'Y';
+get defaultOptionCollapseToolbar => 'Y';
 
 bool whitelistNotEmpty() {
   // https://rustdesk.com/docs/en/self-host/client-configuration/advanced-settings/#whitelist

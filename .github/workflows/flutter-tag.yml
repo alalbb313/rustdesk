@@ -1,18 +1,5 @@
-name: Flutter Tag Build
+# Disabled tag-triggered workflow; tag builds are now handled by ci.yml
+name: Flutter Tag Build (disabled)
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+-[0-9]+'
-
-jobs:
-  run-flutter-tag-build:
-    uses: ./.github/workflows/flutter-build.yml
-    secrets: inherit
-    with:
-      upload-artifact: true
-      upload-tag: ${{ github.ref_name }}
