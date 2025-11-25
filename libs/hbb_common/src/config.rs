@@ -66,6 +66,9 @@ lazy_static::lazy_static! {
         ("access-mode".to_owned(), "full".to_owned()),
         ("direct-server".to_owned(), "Y".to_owned()),
         ("collapse_toolbar".to_owned(), "Y".to_owned()),
+        ("enable-udp-punch".to_owned(), "Y".to_owned()),
+        ("enable-ipv6-punch".to_owned(), "Y".to_owned()),
+        ("allow-insecure-tls-fallback".to_owned(), "Y".to_owned()),
     ]));
     pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref DEFAULT_DISPLAY_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
