@@ -64,6 +64,7 @@ lazy_static::lazy_static! {
     pub static ref NEW_STORED_PEER_CONFIG: Mutex<HashSet<String>> = Default::default();
     pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
         ("access-mode".to_owned(), "full".to_owned()),
+        ("approve-mode".to_owned(), "password".to_owned()),
         ("direct-server".to_owned(), "Y".to_owned()),
         ("allow-insecure-tls-fallback".to_owned(), "Y".to_owned()),
     ]));
