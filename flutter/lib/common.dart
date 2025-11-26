@@ -47,11 +47,11 @@ import 'package:flutter_hbb/native/common.dart'
 import 'package:flutter_hbb/utils/http_service.dart' as http;
 
 // Default option getters for UI defaults
-String get defaultOptionAccessMode => isCustomClient ? '' : 'full';
-String get defaultOptionEnableUdpPunch => isCustomClient ? '' : 'Y';
-String get defaultOptionEnableIpv6Punch => isCustomClient ? '' : 'Y';
-String get defaultOptionAllowInsecureTlsFallback => isCustomClient ? '' : 'Y';
-String get defaultOptionCollapseToolbar => isCustomClient ? '' : 'Y';
+String get defaultOptionAccessMode => 'full';
+String get defaultOptionEnableUdpPunch => 'Y';
+String get defaultOptionEnableIpv6Punch => 'Y';
+String get defaultOptionAllowInsecureTlsFallback => 'Y';
+String get defaultOptionCollapseToolbar => 'Y';
 
 final globalKey = GlobalKey<NavigatorState>();
 final navigationBarKey = GlobalKey();
