@@ -27,26 +27,39 @@
 ### 2.1 `libs/hbb_common/src/config.rs`
 
 #### 2.1.1 默认设置配置
-在 `DEFAULT_SETTINGS` 中添加所有默认配置：
+将配置项正确放置在对应的配置组中：
 
+**DEFAULT_SETTINGS** (服务端设置):
 ```rust
 pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
     ("access-mode".to_owned(), "full".to_owned()),
     ("direct-server".to_owned(), "Y".to_owned()),
-    ("collapse_toolbar".to_owned(), "Y".to_owned()),
-    ("enable-udp-punch".to_owned(), "Y".to_owned()),
-    ("enable-ipv6-punch".to_owned(), "Y".to_owned()),
     ("allow-insecure-tls-fallback".to_owned(), "Y".to_owned()),
 ]));
 ```
 
+**DEFAULT_DISPLAY_SETTINGS** (显示设置):
+```rust
+pub static ref DEFAULT_DISPLAY_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
+    ("collapse_toolbar".to_owned(), "Y".to_owned()),
+]));
+```
+
+**DEFAULT_LOCAL_SETTINGS** (本地设置):
+```rust
+pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
+    ("enable-udp-punch".to_owned(), "Y".to_owned()),
+    ("enable-ipv6-punch".to_owned(), "Y".to_owned()),
+]));
+```
+
 **说明**：
-- `access-mode: full` - 设置完全访问权限
-- `direct-server: Y` - 允许直接 IP 访问
-- `collapse_toolbar: Y` - 默认折叠工具栏
-- `enable-udp-punch: Y` - 启用 UDP 打洞
-- `enable-ipv6-punch: Y` - 启用 IPv6 P2P 连接
-- `allow-insecure-tls-fallback: Y` - 允许回退到不安全的 TLS 连接
+- `access-mode: full` - 设置完全访问权限（服务端设置）
+- `direct-server: Y` - 允许直接 IP 访问（服务端设置）
+- `allow-insecure-tls-fallback: Y` - 允许回退到不安全的 TLS 连接（服务端设置）
+- `collapse_toolbar: Y` - 默认折叠工具栏（显示设置）
+- `enable-udp-punch: Y` - 启用 UDP 打洞（本地设置）
+- `enable-ipv6-punch: Y` - 启用 IPv6 P2P 连接（本地设置）
 
 #### 2.1.2 服务器配置方法
 添加获取默认服务器配置的方法：
@@ -129,6 +142,23 @@ async fn secure_connection(
     // ... 其余代码
 }
 ```
+
+---
+
+## 重要说明
+
+### 服务器地址显示行为
+- **UI显示**：设置界面中的服务器地址字段应该显示为**空白**（未设置状态）
+- **后端行为**：即使UI显示为空，后端会自动使用我们配置的默认服务器地址
+- **用户体验**：用户看到空白表示使用默认服务器，可以随时修改
+
+### 配置测试注意事项
+如果在测试时发现服务器地址仍然显示默认值，可能是因为：
+1. 之前的测试已将值保存到配置文件中
+2. 解决方法：删除配置文件后重新测试
+   - Windows: `%APPDATA%\RustDesk\config\`
+   - macOS: `~/Library/Application Support/RustDesk/config/`
+   - Linux: `~/.config/rustdesk/`
 
 ---
 
