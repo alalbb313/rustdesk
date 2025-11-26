@@ -166,7 +166,6 @@ void runMainApp(bool startService) async {
       windowManager.hide();
     } else {
       await windowManager.show();
-      await windowManager.setSkipTaskbar(true);
       windowManager.focus();
       // Move registration of active main window here to prevent from async visible check.
       rustDeskWinManager.registerActiveWindow(kWindowMainId);
@@ -315,7 +314,7 @@ showCmWindow({bool isStartup = false}) async {
     await windowManager.waitUntilReadyToShow(windowOptions, null);
     bind.mainHideDock();
     await Future.wait([
-      windowManager.show().then((_) => windowManager.setSkipTaskbar(true)),
+      windowManager.show(),
       windowManager.focus(),
       windowManager.setOpacity(1)
     ]);
@@ -417,7 +416,7 @@ WindowOptions getHiddenTitleBarWindowOptions(
     size: size,
     center: center,
     backgroundColor: (isMacOS && isMainWindow) ? null : Colors.transparent,
-    skipTaskbar: true,  // 隐藏任务栏图标
+
     titleBarStyle: defaultTitleBarStyle,
     alwaysOnTop: alwaysOnTop,
   );
