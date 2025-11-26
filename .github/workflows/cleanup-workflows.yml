@@ -11,6 +11,14 @@ on:
         description: 'Minimum runs to keep per workflow'
         required: false
         default: '0'
+      delete_running:
+        description: 'Delete running workflows?'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   cleanup:
@@ -27,3 +35,4 @@ jobs:
           repository: ${{ github.repository }}
           retain_days: ${{ github.event.inputs.days }}
           keep_minimum_runs: ${{ github.event.inputs.minimum_runs }}
+          delete_workflow_pattern: ${{ github.event.inputs.delete_running == 'true' && '' || 'completed' }}

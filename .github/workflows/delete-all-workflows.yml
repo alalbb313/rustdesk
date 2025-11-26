@@ -7,6 +7,14 @@ on:
         description: 'Type "DELETE ALL" to confirm deletion of all workflow runs'
         required: true
         default: ''
+      delete_running:
+        description: 'Delete running workflows? (true/false)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   delete-all:
@@ -19,8 +27,9 @@ jobs:
     steps:
       - name: Confirm deletion
         run: |
-          echo "⚠️ WARNING: This will delete ALL workflow runs!"
+          echo "⚠️ WARNING: This will delete workflow runs!"
           echo "Confirmation received: ${{ github.event.inputs.confirm }}"
+          echo "Delete running workflows: ${{ github.event.inputs.delete_running }}"
       
       - name: Delete all workflow runs
         uses: actions/github-script@v7
@@ -29,8 +38,10 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
+            const deleteRunning = '${{ github.event.inputs.delete_running }}' === 'true';
             
             console.log(`Fetching all workflows for ${owner}/${repo}...`);
+            console.log(`Delete running workflows: ${deleteRunning}`);
             
             // Get all workflows
             const workflows = await github.rest.actions.listRepoWorkflows({
@@ -40,13 +51,17 @@ jobs:
             
             console.log(`Found ${workflows.data.total_count} workflows`);
             
+            let totalDeleted = 0;
+            let totalSkipped = 0;
+            
             // For each workflow, delete all runs
             for (const workflow of workflows.data.workflows) {
               console.log(`\nProcessing workflow: ${workflow.name} (ID: ${workflow.id})`);
               
               let page = 1;
               let hasMore = true;
-              let totalDeleted = 0;
+              let workflowDeleted = 0;
+              let workflowSkipped = 0;
               
               while (hasMore) {
                 const runs = await github.rest.actions.listWorkflowRuns({
@@ -65,29 +80,49 @@ jobs:
                 console.log(`  Page ${page}: Found ${runs.data.workflow_runs.length} runs`);
                 
                 for (const run of runs.data.workflow_runs) {
+                  // Check if workflow is running
+                  const isRunning = ['in_progress', 'queued', 'waiting'].includes(run.status);
+                  
+                  if (isRunning && !deleteRunning) {
+                    console.log(`  ⏭️  Skipping running workflow: ${run.id} (status: ${run.status})`);
+                    workflowSkipped++;
+                    totalSkipped++;
+                    continue;
+                  }
+                  
                   try {
                     await github.rest.actions.deleteWorkflowRun({
                       owner,
                       repo,
                       run_id: run.id,
                     });
+                    workflowDeleted++;
                     totalDeleted++;
                     
                     if (totalDeleted % 10 === 0) {
                       console.log(`  Deleted ${totalDeleted} runs...`);
                     }
                   } catch (error) {
-                    console.log(`  Failed to delete run ${run.id}: ${error.message}`);
+                    console.log(`  ❌ Failed to delete run ${run.id}: ${error.message}`);
                   }
                 }
                 
                 page++;
               }
               
-              console.log(`  ✅ Deleted ${totalDeleted} runs for workflow: ${workflow.name}`);
+              console.log(`  ✅ Workflow: ${workflow.name}`);
+              console.log(`     - Deleted: ${workflowDeleted} runs`);
+              if (workflowSkipped > 0) {
+                console.log(`     - Skipped: ${workflowSkipped} running workflows`);
+              }
             }
             
-            console.log('\n🎉 All workflow runs have been deleted!');
+            console.log('\n🎉 Summary:');
+            console.log(`   Total deleted: ${totalDeleted} runs`);
+            if (totalSkipped > 0) {
+              console.log(`   Total skipped: ${totalSkipped} running workflows`);
+            }
+            console.log('   All workflow runs have been processed!');
       
       - name: Deletion cancelled
         if: github.event.inputs.confirm != 'DELETE ALL'
