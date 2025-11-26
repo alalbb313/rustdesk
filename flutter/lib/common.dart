@@ -3800,10 +3800,8 @@ get defaultOptionTheme => 'system';
 get defaultOptionYes => 'Y';
 get defaultOptionNo => 'N';
 get defaultOptionWhitelist => ',';
-get defaultOptionAccessMode => 'full';
 get defaultOptionApproveMode => 'password-click';
 get defaultOptionDirectServer => 'Y';
-get defaultOptionCollapseToolbar => 'Y';
 
 bool whitelistNotEmpty() {
   // https://rustdesk.com/docs/en/self-host/client-configuration/advanced-settings/#whitelist
