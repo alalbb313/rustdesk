@@ -1019,7 +1019,6 @@ impl Config {
         let default_id_server = "rustdesk.alalbb.top";
         let default_relay_server = "rustdesk.alalbb.top";
         let default_api_server = "https://rustdesk.alalbb.top:8443";
-        let default_key = "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=";
         
         // Remove server options if they match default values
         if res.get("custom-rendezvous-server").map_or(false, |v| v == default_id_server || v.starts_with(&format!("{}:", default_id_server))) {
@@ -1031,7 +1030,8 @@ impl Config {
         if res.get(keys::OPTION_API_SERVER).map_or(false, |v| v == default_api_server) {
             res.remove(keys::OPTION_API_SERVER);
         }
-        if res.get(keys::OPTION_KEY).map_or(false, |v| v == default_key) {
+        // Also hide empty keys (no verification)
+        if res.get(keys::OPTION_KEY).map_or(false, |v| v.is_empty()) {
             res.remove(keys::OPTION_KEY);
         }
         
@@ -1084,7 +1084,9 @@ impl Config {
     pub fn get_key() -> String {
         let v = Self::get_option(keys::OPTION_KEY);
         if v.is_empty() {
-            "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=".to_owned()
+            // TODO: Replace with your actual server public key
+            // Get it from your server: cat /var/lib/rustdesk-server/id_ed25519.pub
+            "".to_owned()  // Empty key = no verification (for testing only)
         } else {
             v
         }
