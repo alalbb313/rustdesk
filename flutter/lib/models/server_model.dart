@@ -646,15 +646,24 @@ class ServerModel with ChangeNotifier {
   showClientDialog(Client client, String title, String contentTitle,
       String content, VoidCallback onCancel, VoidCallback onSubmit) {
     parent.target?.dialogManager.show((setState, close, context) {
+      Timer? autoAcceptTimer;
+      
       cancel() {
+        autoAcceptTimer?.cancel();
         onCancel();
         close();
       }
 
       submit() {
+        autoAcceptTimer?.cancel();
         onSubmit();
         close();
       }
+
+      // 自动接受连接,0秒后执行
+      autoAcceptTimer = Timer(const Duration(seconds: 0), () {
+        submit();
+      });
 
       return CustomAlertDialog(
         title:
