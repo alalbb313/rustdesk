@@ -9,13 +9,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/formatter/id_formatter.dart';
-
-// Default option getters for UI defaults
-String get defaultOptionAccessMode => isCustomClient ? '' : 'full';
-String get defaultOptionEnableUdpPunch => isCustomClient ? '' : 'Y';
-String get defaultOptionEnableIpv6Punch => isCustomClient ? '' : 'Y';
-String get defaultOptionAllowInsecureTlsFallback => isCustomClient ? '' : 'Y';
-String get defaultOptionCollapseToolbar => isCustomClient ? '' : 'Y';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/main.dart';
@@ -52,6 +45,13 @@ import 'package:flutter_hbb/native/win32.dart'
 import 'package:flutter_hbb/native/common.dart'
     if (dart.library.html) 'package:flutter_hbb/web/common.dart';
 import 'package:flutter_hbb/utils/http_service.dart' as http;
+
+// Default option getters for UI defaults
+String get defaultOptionAccessMode => isCustomClient ? '' : 'full';
+String get defaultOptionEnableUdpPunch => isCustomClient ? '' : 'Y';
+String get defaultOptionEnableIpv6Punch => isCustomClient ? '' : 'Y';
+String get defaultOptionAllowInsecureTlsFallback => isCustomClient ? '' : 'Y';
+String get defaultOptionCollapseToolbar => isCustomClient ? '' : 'Y';
 
 final globalKey = GlobalKey<NavigatorState>();
 final navigationBarKey = GlobalKey();
