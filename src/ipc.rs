@@ -1119,14 +1119,15 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>) {
     if let Ok(Some(v)) = get_config_async("rendezvous_server", ms_timeout).await {
         let mut urls = v.split(",");
         let a = urls.next().unwrap_or_default().to_owned();
-        let b: Vec<String> = urls.map(|x| x.to_owned()).collect();
-        (a, b)
-    } else {
-        (
-            Config::get_rendezvous_server(),
-            Config::get_rendezvous_servers(),
-        )
+        if !a.is_empty() {
+            let b: Vec<String> = urls.map(|x| x.to_owned()).collect();
+            return (a, b);
+        }
     }
+    (
+        Config::get_rendezvous_server(),
+        Config::get_rendezvous_servers(),
+    )
 }
 
 async fn get_options_(ms_timeout: u64) -> ResultType<HashMap<String, String>> {
