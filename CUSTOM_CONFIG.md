@@ -1,88 +1,46 @@
-# RustDesk Custom Configuration Documentation
+# RustDesk Custom Configuration Guide
 
-## 目标
-本文件记录了对 **RustDesk** 源码所做的自定义修改，目的是在以后克隆或拉取仓库后，能够快速恢复这些配置。
+This document records all custom modifications made to the RustDesk source code to achieve specific behaviors, such as hardcoded default servers, UI customization, and build fixes. Use this guide to re-apply changes after pulling updates from the upstream repository.
 
----
+## 1. Core Configuration & Default Settings
 
-## 1. 需求概述
-| 编号 | 需求描述 |
-|------|----------|
-| 1 | 将 **默认访问模式** 设置为 `full`（启用 "允许远程配置修改"） |
-| 2 | 在 **网络** 设置页中默认填入以下服务器地址（界面不显示，后端使用）： |
-|   | - **ID 服务器**: `rustdesk.alalbb.top` |
-|   | - **中继服务器**: `rustdesk.alalbb.top` |
-|   | - **API 服务器**: `https://rustdesk.alalbb.top:8443` |
-|   | - **Key**: `rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=` |
-| 3 | 默认开启 **"Allow direct IP access"**（直接 IP 访问） |
-| 4 | 在 **显示 → 其他默认选项** 中默认勾选 **"折叠工具栏"** |
-| 5 | **隐藏主窗口和连接管理窗口的任务栏图标** |
-| 6 | 在 **常规** 设置中默认启用 **"启用 UDP 打洞"** 和 **"启用 IPv6 P2P 连接"** |
-| 7 | 在 **网络** 设置中默认启用 **"允许回退到不安全的 TLS 连接"** |
+### File: `libs/hbb_common/src/config.rs`
 
----
+**Goal**: Set default values for settings and implement server/key fallback logic while hiding them in the UI.
 
-## 2. 代码修改位置与内容
+#### 1.1. Modify Default Settings Map
+Locate `DEFAULT_SETTINGS`, `DEFAULT_LOCAL_SETTINGS`, and `DEFAULT_DISPLAY_SETTINGS` and update/add entries:
 
-### 2.1 `libs/hbb_common/src/config.rs`
-
-#### 2.1.1 默认设置配置
-将配置项正确放置在对应的配置组中：
-
-**DEFAULT_SETTINGS** (服务端设置):
 ```rust
-pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
-    ("access-mode".to_owned(), "full".to_owned()),
-    ("direct-server".to_owned(), "Y".to_owned()),
-    ("allow-insecure-tls-fallback".to_owned(), "Y".to_owned()),
-]));
+// In DEFAULT_SETTINGS
+"access-mode" => "full",
+"direct-server" => "Y",
+"allow-insecure-tls-fallback" => "Y",
+
+// In DEFAULT_LOCAL_SETTINGS
+"enable-udp-punch" => "Y",
+"enable-ipv6-punch" => "Y",
+
+// In DEFAULT_DISPLAY_SETTINGS
+"collapse_toolbar" => "Y",
 ```
 
-**DEFAULT_DISPLAY_SETTINGS** (显示设置):
-```rust
-pub static ref DEFAULT_DISPLAY_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
-    ("collapse_toolbar".to_owned(), "Y".to_owned()),
-]));
-```
-
-**DEFAULT_LOCAL_SETTINGS** (本地设置):
-```rust
-pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
-    ("enable-udp-punch".to_owned(), "Y".to_owned()),
-    ("enable-ipv6-punch".to_owned(), "Y".to_owned()),
-]));
-```
-
-**说明**：
-- `access-mode: full` - 设置完全访问权限（服务端设置）
-- `direct-server: Y` - 允许直接 IP 访问（服务端设置）
-- `allow-insecure-tls-fallback: Y` - 允许回退到不安全的 TLS 连接（服务端设置）
-- `collapse_toolbar: Y` - 默认折叠工具栏（显示设置）
-- `enable-udp-punch: Y` - 启用 UDP 打洞（本地设置）
-- `enable-ipv6-punch: Y` - 启用 IPv6 P2P 连接（本地设置）
-
-#### 2.1.2 服务器配置方法
-添加获取默认服务器配置的方法：
+#### 1.2. Implement Hardcoded Server & Key Fallbacks
+Modify/Add the following functions to return your hardcoded values when configuration is empty:
 
 ```rust
 pub fn get_rendezvous_server() -> String {
-    let mut rendezvous_server = EXE_RENDEZVOUS_SERVER.read().unwrap().clone();
+    // ... existing logic ...
     if rendezvous_server.is_empty() {
-        rendezvous_server = Self::get_option("custom-rendezvous-server");
+        rendezvous_server = "rustdesk.alalbb.top".to_owned(); // CUSTOM
     }
-    if rendezvous_server.is_empty() {
-        rendezvous_server = PROD_RENDEZVOUS_SERVER.read().unwrap().clone();
-    }
-    if rendezvous_server.is_empty() {
-        rendezvous_server = "rustdesk.alalbb.top".to_owned();
-    }
-    // ... 其余代码
+    rendezvous_server
 }
 
 pub fn get_relay_server() -> String {
     let v = Self::get_option(keys::OPTION_RELAY_SERVER);
     if v.is_empty() {
-        "rustdesk.alalbb.top".to_owned()
+        "rustdesk.alalbb.top".to_owned() // CUSTOM
     } else {
         v
     }
@@ -91,7 +49,7 @@ pub fn get_relay_server() -> String {
 pub fn get_api_server() -> String {
     let v = Self::get_option(keys::OPTION_API_SERVER);
     if v.is_empty() {
-        "https://rustdesk.alalbb.top:8443".to_owned()
+        "https://rustdesk.alalbb.top:8443".to_owned() // CUSTOM
     } else {
         v
     }
@@ -100,293 +58,129 @@ pub fn get_api_server() -> String {
 pub fn get_key() -> String {
     let v = Self::get_option(keys::OPTION_KEY);
     if v.is_empty() {
-        "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=".to_owned()
+        "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=".to_owned() // CUSTOM
     } else {
         v
     }
 }
 ```
 
----
-
-### 2.2 `libs/hbb_common/src/websocket.rs`
-
-更新 WebSocket 配置以使用新的获取方法：
+#### 1.3. Hide Default Values in UI
+Modify `get_options` to filter out values that match your hardcoded defaults, so they appear blank in the UI:
 
 ```rust
-let relay_server = Config::get_relay_server();
-// ...
-let api_server = Config::get_api_server();
+pub fn get_options() -> Vec<String> {
+    // ...
+    // Inside the loop or filter logic:
+    if key == "custom-rendezvous-server" && value == "rustdesk.alalbb.top" { return None; }
+    if key == "relay-server" && value == "rustdesk.alalbb.top" { return None; }
+    if key == "api-server" && value == "https://rustdesk.alalbb.top:8443" { return None; }
+    if key == "key" && value == "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=" { return None; }
+    // ...
+}
 ```
 
 ---
 
-### 2.3 `src/client.rs`
+## 2. Server Connection Logic Fixes
 
-更新客户端连接以使用默认 key：
+### File: `src/common.rs`
 
+**Goal**: Ensure the client uses the default key when no key is configured.
+
+#### Modify `get_key` function:
 ```rust
-async fn secure_connection(
-    peer_id: &str,
-    signed_id_pk: Vec<u8>,
-    key: &str,
-    conn: &mut Stream,
-) -> ResultType<Option<Vec<u8>>> {
-    let default_key = Config::get_key();
-    let key_to_use = if key.is_empty() {
-        &default_key
-    } else {
-        key
-    };
-    let rs_pk = get_rs_pk(key_to_use);
-    // ... 其余代码
+pub async fn get_key(sync: bool) -> String {
+    // ...
+    // Change fallback logic:
+    if key.is_empty() {
+        key = Config::get_key(); // CUSTOM: Use Config::get_key() instead of RS_PUB_KEY
+    }
+    key
+}
+```
+
+### File: `src/ipc.rs`
+
+**Goal**: Ensure the client uses the default rendezvous server when IPC returns empty config (due to UI hiding).
+
+#### Modify `get_rendezvous_server` function:
+```rust
+pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>) {
+    if let Ok(Some(v)) = get_config_async("rendezvous_server", ms_timeout).await {
+        let mut urls = v.split(",");
+        let a = urls.next().unwrap_or_default().to_owned();
+        // CUSTOM: Add check for empty string
+        if !a.is_empty() {
+            let b: Vec<String> = urls.map(|x| x.to_owned()).collect();
+            return (a, b);
+        }
+    }
+    (
+        Config::get_rendezvous_server(),
+        Config::get_rendezvous_servers(),
+    )
 }
 ```
 
 ---
 
-## 重要说明
+## 3. Flutter UI & Build Fixes
 
-### 服务器地址显示行为
-- **UI显示**：设置界面中的服务器地址字段应该显示为**空白**（未设置状态）
-- **后端行为**：即使UI显示为空，后端会自动使用我们配置的默认服务器地址
-- **用户体验**：用户看到空白表示使用默认服务器，可以随时修改
+### File: `flutter/lib/common.dart`
 
-### 配置测试注意事项
-如果在测试时发现服务器地址仍然显示默认值，可能是因为：
-1. 之前的测试已将值保存到配置文件中
-2. 解决方法：删除配置文件后重新测试
-   - Windows: `%APPDATA%\RustDesk\config\`
-   - macOS: `~/Library/Application Support/RustDesk/config/`
-   - Linux: `~/.config/rustdesk/`
+**Goal**: Fix Dart build errors and set default UI options.
 
----
+1.  **Fix Import Order**: Move all `import` statements to the very top of the file.
+2.  **Fix Duplicate Declarations**: Remove duplicate `defaultOptionAccessMode` and `defaultOptionCollapseToolbar` at the bottom of the file.
+3.  **Fix Forward Reference**: Simplify default option getters:
+    ```dart
+    String get defaultOptionAccessMode => 'full'; // CUSTOM
+    String get defaultOptionCollapseToolbar => 'Y'; // CUSTOM
+    ```
 
-### 2.4 `flutter/lib/main.dart`
+### File: `flutter/lib/models/server_model.dart`
 
-#### 2.4.1 隐藏任务栏图标
+**Goal**: Minimize the connection window immediately when a password connection is authorized.
 
-在主窗口显示时添加：
+#### Modify `_addTab` function:
 ```dart
-await windowManager.show();
-await windowManager.setSkipTaskbar(true);
-```
-
-在连接管理窗口显示时添加：
-```dart
-windowManager.show().then((_) => windowManager.setSkipTaskbar(true)),
-```
-
----
-
-## 3. 自动化恢复脚本
-
-### 3.1 PowerShell 脚本 (Windows)
-
-将以下脚本保存为 `apply_custom_config.ps1`：
-
-```powershell
-#!/usr/bin/env pwsh
-# RustDesk 自定义配置应用脚本
-
-Write-Host "开始应用 RustDesk 自定义配置..." -ForegroundColor Green
-
-# 1. 修改 libs/hbb_common/src/config.rs - DEFAULT_SETTINGS
-Write-Host "1. 配置默认设置..." -ForegroundColor Yellow
-$configPath = "libs\hbb_common\src\config.rs"
-$content = Get-Content $configPath -Raw
-
-# 查找并替换 DEFAULT_SETTINGS
-$pattern = '(?s)(pub static ref DEFAULT_SETTINGS.*?RwLock::new\(HashMap::from\(\[)(.*?)(\]\)\);)'
-$replacement = @'
-$1
-        ("access-mode".to_owned(), "full".to_owned()),
-        ("direct-server".to_owned(), "Y".to_owned()),
-        ("collapse_toolbar".to_owned(), "Y".to_owned()),
-        ("enable-udp-punch".to_owned(), "Y".to_owned()),
-        ("enable-ipv6-punch".to_owned(), "Y".to_owned()),
-        ("allow-insecure-tls-fallback".to_owned(), "Y".to_owned()),
-    $3
-'@
-$content = $content -replace $pattern, $replacement
-$content | Set-Content $configPath -NoNewline
-
-# 2. 添加服务器配置方法
-Write-Host "2. 添加服务器配置方法..." -ForegroundColor Yellow
-
-# 在 get_rendezvous_server 中添加默认值
-$content = Get-Content $configPath -Raw
-if ($content -notmatch 'rendezvous_server = "rustdesk\.alalbb\.top"') {
-    $pattern = '(if rendezvous_server\.is_empty\(\) \{[\s\S]*?rendezvous_server = PROD_RENDEZVOUS_SERVER\.read\(\)\.unwrap\(\)\.clone\(\);[\s\S]*?\})'
-    $replacement = @'
-$1
-        if rendezvous_server.is_empty() {
-            rendezvous_server = "rustdesk.alalbb.top".to_owned();
-        }
-'@
-    $content = $content -replace $pattern, $replacement
-}
-
-# 添加 get_relay_server, get_api_server, get_key 方法
-if ($content -notmatch 'pub fn get_relay_server') {
-    $insertPoint = 'pub fn get_bool_option'
-    $newMethods = @'
-
-    pub fn get_relay_server() -> String {
-        let v = Self::get_option(keys::OPTION_RELAY_SERVER);
-        if v.is_empty() {
-            "rustdesk.alalbb.top".to_owned()
-        } else {
-            v
-        }
+void _addTab(Client client) {
+    // ...
+    // Only do the hidden task when on Desktop.
+    if (client.authorized && isDesktop) {
+      // CUSTOM: Immediately minimize window
+      Future.delayed(Duration.zero, () {
+        if (!hideCm) windowManager.minimize();
+      });
     }
-
-    pub fn get_api_server() -> String {
-        let v = Self::get_option(keys::OPTION_API_SERVER);
-        if v.is_empty() {
-            "https://rustdesk.alalbb.top:8443".to_owned()
-        } else {
-            v
-        }
-    }
-
-    pub fn get_key() -> String {
-        let v = Self::get_option(keys::OPTION_KEY);
-        if v.is_empty() {
-            "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=".to_owned()
-        } else {
-            v
-        }
-    }
-
-'@
-    $content = $content -replace "(\s+$insertPoint)", "$newMethods`$1"
+    // ...
 }
-$content | Set-Content $configPath -NoNewline
-
-# 3. 修改 libs/hbb_common/src/websocket.rs
-Write-Host "3. 更新 WebSocket 配置..." -ForegroundColor Yellow
-$websocketPath = "libs\hbb_common\src\websocket.rs"
-$content = Get-Content $websocketPath -Raw
-$content = $content -replace 'let relay_server = Config::get_option\(OPTION_RELAY_SERVER\);', 'let relay_server = Config::get_relay_server();'
-$content = $content -replace 'let api_server = Config::get_option\("api-server"\);', 'let api_server = Config::get_api_server();'
-$content | Set-Content $websocketPath -NoNewline
-
-# 4. 修改 src/client.rs
-Write-Host "4. 更新客户端连接配置..." -ForegroundColor Yellow
-$clientPath = "src\client.rs"
-$content = Get-Content $clientPath -Raw
-$pattern = '(?s)(async fn secure_connection\([\s\S]*?\) -> ResultType<Option<Vec<u8>>> \{[\s\S]*?)let rs_pk = get_rs_pk\(if key\.is_empty\(\) \{[\s\S]*?config::RS_PUB_KEY[\s\S]*?\} else \{[\s\S]*?key[\s\S]*?\}\);'
-$replacement = @'
-$1let default_key = Config::get_key();
-        let key_to_use = if key.is_empty() {
-            &default_key
-        } else {
-            key
-        };
-        let rs_pk = get_rs_pk(key_to_use);
-'@
-$content = $content -replace $pattern, $replacement
-$content | Set-Content $clientPath -NoNewline
-
-# 5. 修改 flutter/lib/main.dart
-Write-Host "5. 配置任务栏隐藏..." -ForegroundColor Yellow
-$mainPath = "flutter\lib\main.dart"
-$content = Get-Content $mainPath -Raw
-
-# 主窗口
-if ($content -match 'windowManager\.show\(\);' -and $content -notmatch 'windowManager\.setSkipTaskbar\(true\);') {
-    $content = $content -replace '(\s+)(windowManager\.show\(\);)', "`$1await windowManager.show();`r`n`$1await windowManager.setSkipTaskbar(true);"
-}
-
-# 连接管理窗口
-$content = $content -replace 'windowManager\.show\(\),', 'windowManager.show().then((_) => windowManager.setSkipTaskbar(true)),'
-
-$content | Set-Content $mainPath -NoNewline
-
-Write-Host "配置应用完成！" -ForegroundColor Green
-Write-Host "请运行构建命令以编译应用。" -ForegroundColor Cyan
-```
-
-### 3.2 Bash 脚本 (Linux/macOS)
-
-将以下脚本保存为 `apply_custom_config.sh`：
-
-```bash
-#!/usr/bin/env bash
-set -e
-
-echo "开始应用 RustDesk 自定义配置..."
-
-# 检测操作系统以使用正确的 sed 参数
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    SED_INPLACE=(-i '')
-else
-    SED_INPLACE=(-i)
-fi
-
-# 1. 修改 DEFAULT_SETTINGS
-echo "1. 配置默认设置..."
-# 这里需要手动编辑，因为 sed 处理多行替换比较复杂
-# 建议直接修改 libs/hbb_common/src/config.rs
-
-# 2. 修改 websocket.rs
-echo "2. 更新 WebSocket 配置..."
-sed "${SED_INPLACE[@]}" 's/let relay_server = Config::get_option(OPTION_RELAY_SERVER);/let relay_server = Config::get_relay_server();/g' libs/hbb_common/src/websocket.rs
-sed "${SED_INPLACE[@]}" 's/let api_server = Config::get_option("api-server");/let api_server = Config::get_api_server();/g' libs/hbb_common/src/websocket.rs
-
-# 3. 修改 main.dart
-echo "3. 配置任务栏隐藏..."
-sed "${SED_INPLACE[@]}" 's/windowManager\.show(),/windowManager.show().then((_) => windowManager.setSkipTaskbar(true)),/g' flutter/lib/main.dart
-
-echo "配置应用完成！"
-echo "注意：某些复杂的修改需要手动完成，请参考 CUSTOM_CONFIG.md"
 ```
 
 ---
 
-## 4. 验证步骤
+## 4. GitHub Actions Workflows
 
-1. **编译**：`cargo build --release`（或使用对应平台的构建脚本）
-2. **运行**：启动 RustDesk
-3. **验证常规设置**：
-   - 打开 **设置 → 常规**
-   - 确认 **启用 UDP 打洞** 已勾选
-   - 确认 **启用 IPv6 P2P 连接** 已勾选
-4. **验证安全设置**：
-   - 打开 **设置 → 安全**
-   - 确认权限设置为 **完全访问**
-5. **验证网络设置**：
-   - 打开 **设置 → 网络**
-   - 确认 **ID/中继服务器** 字段显示为空（实际使用默认值）
-   - 确认 **允许直接 IP 访问** 已启用
-   - 确认 **允许回退到不安全的 TLS 连接** 已启用
-6. **验证显示选项**：
-   - 打开 **设置 → 显示 → 其他默认选项**
-   - 确认 **折叠工具栏** 已被勾选
-7. **验证任务栏隐藏**：
-   - 主窗口和连接管理窗口应该不在任务栏中显示图标
+### File: `.github/workflows/cleanup-workflows.yml`
+**Goal**: Add workflow to clean up old runs.
+(Copy content from current repo)
+
+### File: `.github/workflows/delete-all-workflows.yml`
+**Goal**: Add workflow to delete ALL runs (with safety check).
+(Copy content from current repo)
 
 ---
 
-## 5. 修改文件清单
+## 5. Verification Steps
 
-| 文件路径 | 修改内容 |
-|---------|---------|
-| `libs/hbb_common/src/config.rs` | 添加 DEFAULT_SETTINGS 和服务器配置方法 |
-| `libs/hbb_common/src/websocket.rs` | 使用新的配置获取方法 |
-| `src/client.rs` | 更新 secure_connection 使用默认 key |
-| `flutter/lib/main.dart` | 添加 skipTaskbar 设置 |
+After applying these changes:
 
----
-
-## 6. 备注
-
-- 本文档已提交到仓库根目录的 `CUSTOM_CONFIG.md`，后续拉取仓库后即可查看。
-- 所有配置都通过 `DEFAULT_SETTINGS` 实现，用户可以在 UI 中覆盖这些默认值。
-- 服务器地址在 UI 中不显示，但后端会使用这些默认值。
-- 如需在其他分支或新仓库复用，只需复制上述代码块或运行提供的脚本即可。
-
----
-
-*文档更新于 2025‑11‑25，供后续快速恢复自定义配置使用。*
+1.  **Build**: Run the GitHub Actions build (e.g., by pushing a tag).
+2.  **Check UI**:
+    *   Settings -> Network: Server fields should be **BLANK**.
+    *   Settings -> General: UDP/IPv6 should be **CHECKED**.
+    *   Settings -> Display: Collapse Toolbar should be **CHECKED**.
+3.  **Check Connection**:
+    *   Connect to another peer. It should work without "Signature mismatch".
+    *   Connect with password. The window should **minimize immediately**.
