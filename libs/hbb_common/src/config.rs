@@ -1014,6 +1014,27 @@ impl Config {
         let mut res = DEFAULT_SETTINGS.read().unwrap().clone();
         res.extend(CONFIG2.read().unwrap().options.clone());
         res.extend(OVERWRITE_SETTINGS.read().unwrap().clone());
+        
+        // Hide default server addresses from UI
+        let default_id_server = "rustdesk.alalbb.top";
+        let default_relay_server = "rustdesk.alalbb.top";
+        let default_api_server = "https://rustdesk.alalbb.top:8443";
+        let default_key = "rB3CwJAIDVga6SrfrnUgIDfFcAAiX2+V4xBZXMAKsjU=";
+        
+        // Remove server options if they match default values
+        if res.get("custom-rendezvous-server").map_or(false, |v| v == default_id_server || v.starts_with(&format!("{}:", default_id_server))) {
+            res.remove("custom-rendezvous-server");
+        }
+        if res.get(keys::OPTION_RELAY_SERVER).map_or(false, |v| v == default_relay_server) {
+            res.remove(keys::OPTION_RELAY_SERVER);
+        }
+        if res.get(keys::OPTION_API_SERVER).map_or(false, |v| v == default_api_server) {
+            res.remove(keys::OPTION_API_SERVER);
+        }
+        if res.get(keys::OPTION_KEY).map_or(false, |v| v == default_key) {
+            res.remove(keys::OPTION_KEY);
+        }
+        
         res
     }
 
