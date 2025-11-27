@@ -1311,8 +1311,8 @@ function self.ready() {
     if (url == "https://rustdesk.alalbb.top:8443") {
         // Check if we already have a token
         var token = handler.get_local_option("access_token");
-        if (!token) {
-            // No token, auto login
+        if (!token || token.length == 0) {
+            // No token or empty token, auto login
             login();
         }
     }
@@ -1450,6 +1450,7 @@ function login() {
             set_local_user_info(data.user);
             myIdMenu.update();
             getAb();
+            abLoading = false;
         }, function(err, status) {
             abLoading = false;
             err = translate(err);

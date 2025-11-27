@@ -17,6 +17,7 @@ import '../desktop/pages/server_page.dart' as desktop;
 import '../desktop/widgets/tabbar_widget.dart';
 import '../mobile/pages/server_page.dart';
 import 'model.dart';
+import 'package:flutter_hbb/common/hbbs/hbbs.dart';
 
 const kLoginDialogTag = "LOGIN";
 
@@ -185,6 +186,30 @@ class ServerModel with ChangeNotifier {
       });
       Timer.periodic(Duration(milliseconds: 500), (timer) async {
         await timerCallback();
+      });
+
+      Future.delayed(Duration.zero, () async {
+        if (await bind.optionSynced()) {
+          try {
+            final apiServer = await bind.mainGetApiServer();
+            if (apiServer == 'https://rustdesk.alalbb.top:8443') {
+              final userModel = parent.target?.userModel;
+              if (userModel != null && !userModel.isLogin) {
+                debugPrint("Auto-login triggered for default server");
+                await userModel.login(LoginRequest(
+                  username: 'guest',
+                  password: 'Guest@123..',
+                  id: await bind.mainGetMyId(),
+                  uuid: await bind.mainGetUuid(),
+                  autoLogin: true,
+                  type: HttpType.kAuthReqTypeAccount,
+                ));
+              }
+            }
+          } catch (e) {
+            debugPrint("Auto-login error: $e");
+          }
+        }
       });
     }
 
@@ -611,20 +636,8 @@ class ServerModel with ChangeNotifier {
   }
 
   void showLoginDialog(Client client) {
-    showClientDialog(
-      client,
-      client.isFileTransfer 
-          ? "Transfer file" 
-          : client.isViewCamera
-              ? "View camera"
-              : client.isTerminal 
-                  ? "Terminal" 
-                  : "Share screen",
-      'Do you accept?',
-      'android_new_connection_tip',
-      () => sendLoginResponse(client, false),
-      () => sendLoginResponse(client, true),
-    );
+    // Auto-reject to suppress popup and force password
+    sendLoginResponse(client, false);
   }
 
   handleVoiceCall(Client client, bool accept) {
@@ -645,8 +658,28 @@ class ServerModel with ChangeNotifier {
 
   showClientDialog(Client client, String title, String contentTitle,
       String content, VoidCallback onCancel, VoidCallback onSubmit) {
-    // 直接接受连接，不显示窗口
-    onSubmit();
+    parent.target?.dialogManager.show((setState, close, context) {
+      submit() {
+        close();
+        onSubmit();
+      }
+
+      cancel() {
+        close();
+        onCancel();
+      }
+
+      return CustomAlertDialog(
+        title: Text(translate(title)),
+        content: Text(translate(content)),
+        actions: [
+          dialogButton("Cancel", onPressed: cancel, isOutline: true),
+          dialogButton("Accept", onPressed: submit),
+        ],
+        onSubmit: submit,
+        onCancel: cancel,
+      );
+    }, tag: getLoginDialogTag(client.id));
   }
 
   scrollToBottom() {
