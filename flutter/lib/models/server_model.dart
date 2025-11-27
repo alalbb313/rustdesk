@@ -582,7 +582,10 @@ class ServerModel with ChangeNotifier {
       }
       scrollToBottom();
       notifyListeners();
-      if (isAndroid && !client.authorized) showLoginDialog(client);
+      // 自动接受连接，不显示弹窗
+      if (isAndroid && !client.authorized) {
+        sendLoginResponse(client, true);
+      }
       if (isAndroid) androidUpdatekeepScreenOn();
     } catch (e) {
       debugPrint("Failed to call loginRequest,error:$e");
