@@ -2170,13 +2170,35 @@ impl Connection {
                 self.send_login_error(crate::client::LOGIN_MSG_OFFLINE)
                     .await;
                 return false;
-            } 
-            // Always accept connection directly without showing approval dialog
+            }
+            
+            // Original connection verification logic
+            let recent_session = self.is_recent_session(&lr).await;
+            let has_password = password::has_valid_password();
+            let mode = password::approve_mode();
+            let is_password_mode = mode == password::ApproveMode::Password;
+            let is_click_mode = mode == password::ApproveMode::Click;
+            let is_both_mode = mode == password::ApproveMode::Both;
+            
+            // Check password if needed
+            let password_ok = if is_click_mode {
+                true // Click mode doesn't require password
+            } else {
+                recent_session || has_password
+            };
+            
             if err_msg.is_empty() {
                 #[cfg(target_os = "linux")]
                 self.linux_headless_handle.wait_desktop_cm_ready().await;
-                self.send_logon_response().await;
-                self.try_start_cm(lr.my_id.clone(), lr.my_name.clone(), true);
+                
+                // Send login response based on password check
+                if password_ok {
+                    self.send_logon_response().await;
+                    self.try_start_cm(lr.my_id.clone(), lr.my_name.clone(), true);
+                } else {
+                    self.send_login_error(crate::client::LOGIN_MSG_PASSWORD_WRONG)
+                        .await;
+                }
             } else {
                 self.send_login_error(err_msg).await;
             }
