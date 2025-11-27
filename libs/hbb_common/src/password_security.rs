@@ -85,9 +85,13 @@ pub fn approve_mode() -> ApproveMode {
     }
 }
 
+/// Whether to hide the connection manager window.
+/// Currently, this is controlled by the "Hide connection management window" setting in the UI.
+/// This function returns true if the setting is enabled and either a password is set or it's a recent session.
 pub fn hide_cm() -> bool {
-    // Always hide the connection manager window, regardless of settings
-    true
+    Config::get_option("hide_cm") == "true"
+        && (recent_sessions::count() > 0
+            || has_valid_password())
 }
 
 const VERSION_LEN: usize = 2;

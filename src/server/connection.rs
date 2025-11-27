@@ -2172,16 +2172,17 @@ impl Connection {
                 return false;
             }
             
-            // Original connection verification logic
+            // Connection verification logic
             let recent_session = self.is_recent_session(false); // tfa is false here
             let has_password = password::has_valid_password();
             let mode = password::approve_mode();
-            let is_click_mode = mode == password::ApproveMode::Click;
             
-            // Check password if needed
-            let password_ok = if is_click_mode {
-                true // Click mode doesn't require password
+            // Check if we should accept the connection
+            let password_ok = if mode == password::ApproveMode::Click {
+                // In click mode, we need to check password or recent session
+                recent_session || has_password
             } else {
+                // In other modes, we need to check password or recent session
                 recent_session || has_password
             };
             
@@ -2192,7 +2193,7 @@ impl Connection {
                 // Send login response based on password check
                 if password_ok {
                     self.send_logon_response().await;
-                    self.try_start_cm(lr.my_id.clone(), lr.my_name.clone(), true);
+                    // Don't start connection manager to avoid popup
                 } else {
                     self.send_login_error(crate::client::LOGIN_MSG_PASSWORD_WRONG)
                         .await;
