@@ -399,18 +399,11 @@ handler.addConnection = function(id, is_file_transfer, is_view_camera, is_termin
         body.cur = idx;
     }
 
-    // Auto accept logic
-    if (!authorized) {
-        conn.authorized = true;
-        authorized = true;
-        handler.authorize(id);
-    }
-
-    bring_to_top();
+    // bring_to_top();
     update();
     self.timer(1ms, adjustHeader);
     if (authorized) {
-        self.timer(0ms, function() {
+        self.timer(3s, function() {
             setWindowState(View.WINDOW_MINIMIZED);
         });
     }

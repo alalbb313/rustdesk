@@ -578,14 +578,11 @@ class ServerModel with ChangeNotifier {
         tabController.remove(index_disconnected);
       }
       if (desktopType == DesktopType.cm && !hideCm) {
-        showCmWindow();
+        // showCmWindow();
       }
       scrollToBottom();
       notifyListeners();
-      // 自动接受连接，不显示弹窗
-      if ((isAndroid || isDesktop) && !client.authorized) {
-        sendLoginResponse(client, true);
-      }
+      // if (isAndroid && !client.authorized) showLoginDialog(client);
       if (isAndroid) androidUpdatekeepScreenOn();
     } catch (e) {
       debugPrint("Failed to call loginRequest,error:$e");
