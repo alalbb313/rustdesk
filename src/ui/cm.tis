@@ -51,7 +51,7 @@ class Body: Reactor.Component
                         <div .id>({c.peer_id})</div>
                         <div style="margin-top: 1.2em">{auth
                             ? <span>{disconnected ? translate('Disconnected') : translate('Connected')}{" "}<span #time>{getElapsed(c.time, c.now)}</span></span> 
-                            : <span>{translate('Request access to your device')}{"..."}</span>}
+                            : <span>{translate('Connection in progress...')}</span>}
                         </div>
                     </div>
                 </div>

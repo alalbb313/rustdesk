@@ -2178,12 +2178,15 @@ impl Connection {
             let mode = password::approve_mode();
             
             // Check if we should accept the connection
-            let password_ok = if mode == password::ApproveMode::Click {
-                // In click mode, we need to check password or recent session
-                recent_session || has_password
+            let password_ok = if recent_session {
+                // Recent session with valid password, allow connection
+                true
+            } else if mode == password::ApproveMode::Password {
+                // In password mode, must validate client-provided password
+                self.validate_password()
             } else {
-                // In other modes, we need to check password or recent session
-                recent_session || has_password
+                // In other modes, check if password exists
+                has_password
             };
             
             if err_msg.is_empty() {
