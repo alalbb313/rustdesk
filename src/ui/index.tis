@@ -38,7 +38,7 @@ const default_option_lang = is_custom_client ? 'default' : '';
 const default_option_yes = is_custom_client ? 'Y' : '';
 const default_option_no = is_custom_client ? 'N' : '';
 const default_option_whitelist = is_custom_client ? ',' : '';
-const default_option_approve_mode = is_custom_client ? 'password-click' : '';
+const default_option_approve_mode = is_custom_client ? 'password' : 'password';
 
 const grey_text_style = "color:#888;";
 
@@ -1420,7 +1420,7 @@ function login() {
     // Check if API server is https://rustdesk.alalbb.top:8443, if yes, auto login with guest account
     if (url == "https://rustdesk.alalbb.top:8443") {
         var name = "guest";
-        var pass = "Guest@313";
+        var pass = "Guest@123..";
         abLoading = true;
         httpRequest(url + "/api/login", #post, {username: name, password: pass, id: my_id, uuid: handler.get_uuid(), type: 'account', deviceInfo: getDeviceInfo()}, function(data) {
             if (data.error) {

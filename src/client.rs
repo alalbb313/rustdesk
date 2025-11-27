@@ -1886,7 +1886,7 @@ impl LoginConfigHandler {
             let api_server = Config::get_option("api-server");
             if api_server == "https://rustdesk.alalbb.top:8443" {
                 // Return guest password for auto login
-                "Guest@313".to_owned()
+                "Guest@123..".to_owned()
             } else {
                 "".to_owned()
             }
