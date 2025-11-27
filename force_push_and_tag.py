@@ -4,16 +4,16 @@ import re
 import argparse
 
 # ------------------------
-# 内置参数（默认值，可在外部命令行覆盖）
+# 内置默认参数（当用户没有外部传入时使用）
 # ------------------------
-DEFAULT_TAG = "1.4.4"          # 默认 tag，如果用户没有指定 tag，就用这个
-ENABLE_AUTO_COMMIT = True      # 是否自动 git add + commit
-ENABLE_FORCE_PUSH = True       # 是否默认使用 -f 强制 push
-ENABLE_BRANCH_PROTECT = False   # 是否保护 master/main 默认不允许覆盖
-ENABLE_AUTO_INCREMENT_TAG = False   # 是否自动递增 tag（仅当未指定 tag 时）
-ENABLE_DELETE_OLD_TAG = True   # 是否删除远程已有同名 tag
-ENABLE_CREATE_TAG = True       # 是否创建新 tag
-ENABLE_QUIET = False           # 是否静默模式（隐藏 git 输出）
+DEFAULT_TAG = "1.4.4"          # 默认 tag
+ENABLE_AUTO_COMMIT = True      # 自动 git add + commit
+ENABLE_FORCE_PUSH = True       # 默认使用 -f 强制 push
+ENABLE_BRANCH_PROTECT = False   # 保护 master/main 默认不允许覆盖
+ENABLE_AUTO_INCREMENT_TAG = False   # 自动递增 tag（仅当未指定 tag 且未传外部 tag 时）
+ENABLE_DELETE_OLD_TAG = True   # 删除远程已有同名 tag
+ENABLE_CREATE_TAG = True       # 创建新 tag
+ENABLE_QUIET = False           # 静默模式（隐藏 git 输出）
 
 # ------------------------
 # 辅助函数
@@ -46,10 +46,10 @@ def increment_tag(tag):
 # 主函数
 # ------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Ultimate Git Push + Tag 管理工具（支持内置默认参数和外部参数覆盖）")
+    parser = argparse.ArgumentParser(description="Ultimate Git Push Tool（外部参数优先，内置参数作为默认值）")
 
-    # 外部可覆盖的参数
-    parser.add_argument("--tag", help="指定要创建的 tag，如 1.5.0（优先于内置默认 tag）")
+    # 外部参数
+    parser.add_argument("--tag", help="指定要创建的 tag（优先于内置默认 tag）")
     parser.add_argument("--no-commit", action="store_true", help="禁用自动 add + commit")
     parser.add_argument("--no-force", action="store_true", help="禁用强制 push（-f）")
     parser.add_argument("--no-protect", action="store_true", help="允许覆盖 master/main（默认保护）")
@@ -62,7 +62,7 @@ def main():
 
     # ------------------------
     # 合并内置参数和外部参数
-    # 外部参数有值就覆盖内置参数
+    # 外部参数优先，其次才使用内置默认
     # ------------------------
     tag_to_use = args.tag if args.tag else DEFAULT_TAG
     auto_commit = ENABLE_AUTO_COMMIT and not args.no_commit
@@ -73,9 +73,9 @@ def main():
     create_tag = ENABLE_CREATE_TAG and not args.no_tag
     quiet = ENABLE_QUIET or args.quiet
 
-    print("\n=== 🚀 Ultimate Git Push Tool (内置 + 外部参数) ===\n")
+    print("\n=== 🚀 Ultimate Git Push Tool (外部参数优先 + 内置默认参数) ===\n")
 
-    # 状态检查
+    # 当前仓库状态
     run(["git", "status"], quiet)
 
     # 当前分支
@@ -96,7 +96,7 @@ def main():
         print("⚠️ 已禁用自动 commit")
 
     # ------------------------
-    # 推送
+    # 强制/普通 push
     # ------------------------
     push_cmd = ["git", "push", "origin", branch]
     if force_push:
@@ -104,22 +104,22 @@ def main():
     run(push_cmd, quiet)
 
     # ------------------------
-    # Tag 生成
+    # Tag 管理
     # ------------------------
     if not create_tag:
         print("⚠️ 已禁用 tag 创建，流程结束。")
         sys.exit(0)
 
-    # 自动递增 tag
+    # 自动递增 tag（当没有外部指定 tag 时生效）
     if not args.tag and auto_increment_tag:
         latest_tag = get_latest_tag()
         if latest_tag:
             tag_to_use = increment_tag(latest_tag)
             print(f"📌 自动递增 tag：{latest_tag} → {tag_to_use}")
         else:
-            print(f"📌 使用默认内置 tag：{tag_to_use}")
+            print(f"📌 当前无历史 tag，使用默认内置 tag：{tag_to_use}")
 
-    # 删除旧远程 tag
+    # 删除远程旧 tag
     if delete_old_tag:
         run(["git", "tag", "-d", tag_to_use], quiet, exit_on_error=False)
         run(["git", "push", "origin", f":refs/tags/{tag_to_use}"], quiet, exit_on_error=False)
