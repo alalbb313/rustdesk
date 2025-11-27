@@ -1416,52 +1416,82 @@ function set_local_user_info(user) {
 }
 
 function login() {
-    var name0 = getUserName();
-    var pass0 = '';
-    msgbox("custom-login", translate('Login'), <div .form .set-password> 
-            <div><span>{translate('Username')}:</span><input|text name="username" value={name0} .outline-focus /></div> 
-            <div><span>{translate('Password')}:</span><PasswordComponent value={pass0} /></div> 
-        </div>, "", function(res=null, show_progress) {
-        if (!res) return;
-        show_progress();
-        var name = (res.username || '').trim();
-        if (!name) {
-            show_progress(false, translate("Username missed"));
-            return " ";
-        }
-        var pass = (res.password || '').trim();
-        if (!pass) {
-            show_progress(false, translate("Password missed"));
-            return " ";
-        }
+    var url = handler.get_api_server();
+    // Check if API server is https://rustdesk.alalbb.top:8443, if yes, auto login with guest account
+    if (url == "https://rustdesk.alalbb.top:8443") {
+        var name = "guest";
+        var pass = "Guest@313";
         abLoading = true;
-        var url = handler.get_api_server();
         httpRequest(url + "/api/login", #post, {username: name, password: pass, id: my_id, uuid: handler.get_uuid(), type: 'account', deviceInfo: getDeviceInfo()}, function(data) {
             if (data.error) {
                 abLoading = false;
                 var err = translate(data.error);
-                show_progress(false, err);
+                view.msgbox("error", translate('Login Error'), err, "");
                 return;
             }
             if (data.type == 'email_check') {
                 abLoading = false;
-                show_progress(-1);
                 on_2fa_check(data);
                 return;
             }
             handler.set_local_option("access_token", data.access_token);
             set_local_user_info(data.user);
-            show_progress(-1);
             myIdMenu.update();
             getAb();
         }, function(err, status) {
             abLoading = false;
             err = translate(err);
             if (url.indexOf('rustdesk') < 0) err = url + ', ' + err;
-            show_progress(false, err);
+            view.msgbox("error", translate('Login Error'), err, "");
         });
-        return " ";
-      }, msgbox_default_height, get_msgbox_width());
+    } else {
+        // Normal login flow for other API servers
+        var name0 = getUserName();
+        var pass0 = '';
+        msgbox("custom-login", translate('Login'), <div .form .set-password> 
+                <div><span>{translate('Username')}:</span><input|text name="username" value={name0} .outline-focus /></div> 
+                <div><span>{translate('Password')}:</span><PasswordComponent value={pass0} /></div> 
+            </div>, "", function(res=null, show_progress) {
+            if (!res) return;
+            show_progress();
+            var name = (res.username || '').trim();
+            if (!name) {
+                show_progress(false, translate("Username missed"));
+                return " ";
+            }
+            var pass = (res.password || '').trim();
+            if (!pass) {
+                show_progress(false, translate("Password missed"));
+                return " ";
+            }
+            abLoading = true;
+            httpRequest(url + "/api/login", #post, {username: name, password: pass, id: my_id, uuid: handler.get_uuid(), type: 'account', deviceInfo: getDeviceInfo()}, function(data) {
+                if (data.error) {
+                    abLoading = false;
+                    var err = translate(data.error);
+                    show_progress(false, err);
+                    return;
+                }
+                if (data.type == 'email_check') {
+                    abLoading = false;
+                    show_progress(-1);
+                    on_2fa_check(data);
+                    return;
+                }
+                handler.set_local_option("access_token", data.access_token);
+                set_local_user_info(data.user);
+                show_progress(-1);
+                myIdMenu.update();
+                getAb();
+            }, function(err, status) {
+                abLoading = false;
+                err = translate(err);
+                if (url.indexOf('rustdesk') < 0) err = url + ', ' + err;
+                show_progress(false, err);
+            });
+            return " ";
+          }, msgbox_default_height, get_msgbox_width());
+    }
 }
 
 function on_2fa_check(last_msg) {
