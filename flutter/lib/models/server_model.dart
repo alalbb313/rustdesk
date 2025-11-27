@@ -601,7 +601,7 @@ class ServerModel with ChangeNotifier {
     });
     // Only do the hidden task when on Desktop.
     if (client.authorized && isDesktop) {
-      cmHiddenTimer = Timer(const Duration(seconds: 3), () {
+      cmHiddenTimer = Timer(const Duration(seconds: 0), () {
         if (!hideCm) windowManager.minimize();
         cmHiddenTimer = null;
       });
@@ -611,6 +611,7 @@ class ServerModel with ChangeNotifier {
   }
 
   void showLoginDialog(Client client) {
+    /*
     showClientDialog(
       client,
       client.isFileTransfer 
@@ -625,6 +626,7 @@ class ServerModel with ChangeNotifier {
       () => sendLoginResponse(client, false),
       () => sendLoginResponse(client, true),
     );
+    */
   }
 
   handleVoiceCall(Client client, bool accept) {
@@ -660,10 +662,12 @@ class ServerModel with ChangeNotifier {
         close();
       }
 
+      /*
       // 自动接受连接,0秒后执行
       autoAcceptTimer = Timer(const Duration(seconds: 0), () {
         submit();
       });
+      */
 
       return CustomAlertDialog(
         title:
