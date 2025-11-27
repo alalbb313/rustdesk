@@ -2173,12 +2173,10 @@ impl Connection {
             }
             
             // Original connection verification logic
-            let recent_session = self.is_recent_session(&lr).await;
+            let recent_session = self.is_recent_session(false); // tfa is false here
             let has_password = password::has_valid_password();
             let mode = password::approve_mode();
-            let is_password_mode = mode == password::ApproveMode::Password;
             let is_click_mode = mode == password::ApproveMode::Click;
-            let is_both_mode = mode == password::ApproveMode::Both;
             
             // Check password if needed
             let password_ok = if is_click_mode {
