@@ -1305,6 +1305,18 @@ function self.ready() {
     if (!handler.get_remote_id()) {
         view.focus = $(#remote_id);
     }
+    
+    // Auto login if API server is specific address
+    var url = handler.get_api_server();
+    if (url == "https://rustdesk.alalbb.top:8443") {
+        // Check if we already have a token
+        var token = handler.get_local_option("access_token");
+        if (!token) {
+            // No token, auto login
+            login();
+        }
+    }
+    
     refreshCurrentUser();
     updateTheme();
 }
