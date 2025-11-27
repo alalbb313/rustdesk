@@ -7,8 +7,8 @@ on:
     - "docs/**"
     - "README.md"
   push:
-    branches:
-      - master
+    tags:
+      - "*"
     paths-ignore:
       - ".github/**"
       - "docs/**"
