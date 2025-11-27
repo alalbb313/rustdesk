@@ -583,7 +583,7 @@ class ServerModel with ChangeNotifier {
       scrollToBottom();
       notifyListeners();
       // 自动接受连接，不显示弹窗
-      if (isAndroid && !client.authorized) {
+      if ((isAndroid || isDesktop) && !client.authorized) {
         sendLoginResponse(client, true);
       }
       if (isAndroid) androidUpdatekeepScreenOn();
