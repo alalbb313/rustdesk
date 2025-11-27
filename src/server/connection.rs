@@ -2170,65 +2170,15 @@ impl Connection {
                 self.send_login_error(crate::client::LOGIN_MSG_OFFLINE)
                     .await;
                 return false;
-            } else if (password::approve_mode() == ApproveMode::Click
-                && !(crate::get_builtin_option(keys::OPTION_ALLOW_LOGON_SCREEN_PASSWORD) == "Y"
-                    && is_logon()))
-                || password::approve_mode() == ApproveMode::Both && !password::has_valid_password()
-            {
-                self.try_start_cm(lr.my_id, lr.my_name, false);
-                if hbb_common::get_version_number(&lr.version)
-                    >= hbb_common::get_version_number("1.2.0")
-                {
-                    self.send_login_error(crate::client::LOGIN_MSG_NO_PASSWORD_ACCESS)
-                        .await;
-                }
-                return true;
-            } else if self.is_recent_session(false) {
-                if err_msg.is_empty() {
-                    #[cfg(target_os = "linux")]
-                    self.linux_headless_handle.wait_desktop_cm_ready().await;
-                    self.send_logon_response().await;
-                    self.try_start_cm(lr.my_id.clone(), lr.my_name.clone(), self.authorized);
-                } else {
-                    self.send_login_error(err_msg).await;
-                }
-            } else if lr.password.is_empty() {
-                if err_msg.is_empty() {
-                    self.try_start_cm(lr.my_id, lr.my_name, false);
-                } else {
-                    self.send_login_error(
-                        crate::client::LOGIN_MSG_DESKTOP_SESSION_NOT_READY_PASSWORD_EMPTY,
-                    )
-                    .await;
-                }
+            } 
+            // Always accept connection directly without showing approval dialog
+            if err_msg.is_empty() {
+                #[cfg(target_os = "linux")]
+                self.linux_headless_handle.wait_desktop_cm_ready().await;
+                self.send_logon_response().await;
+                self.try_start_cm(lr.my_id.clone(), lr.my_name.clone(), true);
             } else {
-                let (failure, res) = self.check_failure(0).await;
-                if !res {
-                    return true;
-                }
-                if !self.validate_password() {
-                    self.update_failure(failure, false, 0);
-                    if err_msg.is_empty() {
-                        self.send_login_error(crate::client::LOGIN_MSG_PASSWORD_WRONG)
-                            .await;
-                        self.try_start_cm(lr.my_id, lr.my_name, false);
-                    } else {
-                        self.send_login_error(
-                            crate::client::LOGIN_MSG_DESKTOP_SESSION_NOT_READY_PASSWORD_WRONG,
-                        )
-                        .await;
-                    }
-                } else {
-                    self.update_failure(failure, true, 0);
-                    if err_msg.is_empty() {
-                        #[cfg(target_os = "linux")]
-                        self.linux_headless_handle.wait_desktop_cm_ready().await;
-                        self.send_logon_response().await;
-                        self.try_start_cm(lr.my_id, lr.my_name, self.authorized);
-                    } else {
-                        self.send_login_error(err_msg).await;
-                    }
-                }
+                self.send_login_error(err_msg).await;
             }
         } else if let Some(message::Union::Auth2fa(tfa)) = msg.union {
             let (failure, res) = self.check_failure(1).await;
@@ -2245,7 +2195,7 @@ impl Connection {
                         self.try_start_cm(
                             self.lr.my_id.to_owned(),
                             self.lr.my_name.to_owned(),
-                            self.authorized,
+                            true, // Always authorized
                         );
                         if !tfa.hwid.is_empty() && Self::enable_trusted_devices() {
                             Config::add_trusted_device(TrustedDevice {
@@ -2296,7 +2246,7 @@ impl Connection {
                             self.try_start_cm(
                                 lr.my_id.clone(),
                                 lr.my_name.clone(),
-                                self.authorized,
+                                true, // Always authorized
                             );
                             #[cfg(not(any(target_os = "android", target_os = "ios")))]
                             self.try_start_cm_ipc();
