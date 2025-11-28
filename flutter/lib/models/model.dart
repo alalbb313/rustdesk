@@ -853,14 +853,7 @@ class FfiModel with ChangeNotifier {
 
     final durMsc = evt['dur_msec'] ?? 2000;
 
-  /// Handle the message box event based on [evt] and [id].
-  handleMsgBox(Map<String, dynamic> evt, SessionID sessionId, String peerId) {
-    // Disable all msgbox handling to prevent popups and focus stealing
-  }
 
-  handleToast(Map<String, dynamic> evt, SessionID sessionId, String peerId) {
-     // Disable toast handling
-  }
     final duration = Duration(milliseconds: durMsc);
     if ((text).isEmpty) {
       BotToast.showLoading(
@@ -903,19 +896,6 @@ class FfiModel with ChangeNotifier {
     } else {
       msgBox(sessionId, type, title, text, link, dialogManager,
           hasCancel: hasCancel,
-          reconnect: hasRetry ? reconnect : null,
-          reconnectTimeout: hasRetry ? _reconnects : null);
-    }
-    _timer?.cancel();
-    if (hasRetry) {
-      _timer = Timer(Duration(seconds: _reconnects), () {
-        reconnect(dialogManager, sessionId, false);
-      });
-      _reconnects *= 2;
-    } else {
-      _reconnects = 1;
-    }
-  }
 
   void reconnect(OverlayDialogManager dialogManager, SessionID sessionId,
       bool forceRelay) {
