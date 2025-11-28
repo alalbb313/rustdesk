@@ -1545,7 +1545,8 @@ impl Connection {
                 self.send(msg_out).await;
             }
 
-            try_activate_screen();
+            // Disabled to prevent unintended desktop interactions (Bug 3)
+            // try_activate_screen();
 
             match super::display_service::update_get_sync_displays_on_login().await {
                 Err(err) => {
@@ -2183,7 +2184,12 @@ impl Connection {
                 true
             } else if mode == password::ApproveMode::Password {
                 // In password mode, must validate client-provided password
-                self.validate_password()
+                // Check if client provided a password first
+                if self.lr.password.is_empty() {
+                    false // Will send PASSWORD_EMPTY below
+                } else {
+                    self.validate_password()
+                }
             } else {
                 // In other modes, check if password exists
                 has_password
@@ -2198,8 +2204,14 @@ impl Connection {
                     self.send_logon_response().await;
                     // Don't start connection manager to avoid popup
                 } else {
-                    self.send_login_error(crate::client::LOGIN_MSG_PASSWORD_WRONG)
-                        .await;
+                    // Check if password was empty (prompt user) or wrong (show error)
+                    if mode == password::ApproveMode::Password && self.lr.password.is_empty() {
+                        self.send_login_error(crate::client::LOGIN_MSG_PASSWORD_EMPTY)
+                            .await;
+                    } else {
+                        self.send_login_error(crate::client::LOGIN_MSG_PASSWORD_WRONG)
+                            .await;
+                    }
                 }
             } else {
                 self.send_login_error(err_msg).await;

@@ -18,6 +18,9 @@ pub struct SciterHandler {
 
 impl InvokeUiCM for SciterHandler {
     fn add_connection(&self, client: &crate::ui_cm_interface::Client) {
+        if !client.authorized {
+            return;
+        }
         self.call(
             "addConnection",
             &make_args!(
