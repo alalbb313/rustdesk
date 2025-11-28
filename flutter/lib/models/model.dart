@@ -852,6 +852,15 @@ class FfiModel with ChangeNotifier {
     final type = "";
 
     final durMsc = evt['dur_msec'] ?? 2000;
+
+  /// Handle the message box event based on [evt] and [id].
+  handleMsgBox(Map<String, dynamic> evt, SessionID sessionId, String peerId) {
+    // Disable all msgbox handling to prevent popups and focus stealing
+  }
+
+  handleToast(Map<String, dynamic> evt, SessionID sessionId, String peerId) {
+     // Disable toast handling
+  }
     final duration = Duration(milliseconds: durMsc);
     if ((text).isEmpty) {
       BotToast.showLoading(
