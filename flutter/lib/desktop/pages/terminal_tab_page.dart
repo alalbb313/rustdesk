@@ -397,7 +397,7 @@ class _TerminalTabPageState extends State<TerminalTabPage> {
   void onRemoveId(String id) async {
     if (tabController.state.value.tabs.isEmpty) {
       await DesktopMultiWindow.invokeMethod(
-          kMainWindowId, kWindowEventClose, {
+          kMainWindowId, kWindowEventCloseSubWindow, {
         'id': windowId(),
         'type': WindowType.Terminal.index
       });

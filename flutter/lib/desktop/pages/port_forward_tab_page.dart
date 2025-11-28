@@ -140,7 +140,7 @@ class _PortForwardTabPageState extends State<PortForwardTabPage> {
   void onRemoveId(String id) async {
     if (tabController.state.value.tabs.isEmpty) {
       await DesktopMultiWindow.invokeMethod(
-          kMainWindowId, kWindowEventClose, {
+          kMainWindowId, kWindowEventCloseSubWindow, {
         'id': windowId(),
         'type': WindowType.PortForward.index
       });

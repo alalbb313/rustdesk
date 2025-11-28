@@ -366,7 +366,7 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
             tabController.state.value.tabs.isEmpty &&
             (!await windowController.isHidden())) {
           await DesktopMultiWindow.invokeMethod(
-              kMainWindowId, kWindowEventClose, {
+              kMainWindowId, kWindowEventCloseSubWindow, {
             'id': windowId(),
             'type': WindowType.RemoteDesktop.index
           });
