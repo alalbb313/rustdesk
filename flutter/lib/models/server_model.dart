@@ -591,8 +591,9 @@ class ServerModel with ChangeNotifier {
           _clients.add(client);
           _addTab(client);
         } else {
-          // Explicitly reject unauthorized clients to prevent popup
-          bind.cmLoginRes(connId: client.id, res: false);
+          // Do nothing for unauthorized clients. 
+          // Calling cmLoginRes(false) might trigger UI events or popups in some versions.
+          // We just want to ignore them until they are authorized (by password).
         }
       } catch (e) {
         debugPrint("Failed to decode clientJson '$clientJson', error $e");
@@ -630,8 +631,7 @@ class ServerModel with ChangeNotifier {
         if (client.authorized) {
              _clients.add(client);
         } else {
-             // Explicitly reject unauthorized clients to prevent popup
-             bind.cmLoginRes(connId: client.id, res: false);
+             // Do nothing. Wait for password authorization.
              return;
         }
       }
@@ -663,7 +663,7 @@ class ServerModel with ChangeNotifier {
         onTap: () {},
         page: desktop.buildConnectionCard(client)));
     Future.delayed(Duration.zero, () async {
-      if (!hideCm) windowOnTop(null);
+      // if (!hideCm) windowOnTop(null); // Removed to prevent focus stealing
     });
     // Only do the hidden task when on Desktop.
     if (client.authorized && isDesktop) {
