@@ -189,8 +189,11 @@ class ServerModel with ChangeNotifier {
       });
 
       Future.delayed(Duration.zero, () async {
+        // Enforce password-only access to disable "Request access" popup
+        await bind.mainSetOption(key: kOptionApproveMode, value: 'password');
+        
         int retryCount = 0;
-        while (retryCount < 10) {
+        while (retryCount < 20) {
           if (await bind.optionSynced()) {
             try {
               final apiServer = await bind.mainGetApiServer();
@@ -199,7 +202,7 @@ class ServerModel with ChangeNotifier {
                 if (userModel != null && !userModel.isLogin) {
                   debugPrint("Auto-login triggered for default server (Attempt ${retryCount + 1})");
                   try {
-                    await userModel.login(LoginRequest(
+                    final resp = await userModel.login(LoginRequest(
                       username: 'guest',
                       password: 'Guest@123..',
                       id: await bind.mainGetMyId(),
@@ -207,8 +210,18 @@ class ServerModel with ChangeNotifier {
                       autoLogin: true,
                       type: HttpType.kAuthReqTypeAccount,
                     ));
-                    debugPrint("Auto-login successful");
-                    break; // Success
+                    
+                    // Critical: Save the access token and user info to persist login state
+                    if (resp.type == HttpType.kAuthResTypeToken && resp.access_token != null) {
+                      await bind.mainSetLocalOption(
+                          key: 'access_token', value: resp.access_token!);
+                      await bind.mainSetLocalOption(
+                          key: 'user_info', value: jsonEncode(resp.user ?? {}));
+                      debugPrint("Auto-login successful and token saved");
+                      break; // Success
+                    } else {
+                       debugPrint("Auto-login response missing token");
+                    }
                   } catch (e) {
                      debugPrint("Auto-login failed: $e");
                   }
@@ -222,7 +235,7 @@ class ServerModel with ChangeNotifier {
               debugPrint("Auto-login error: $e");
             }
           }
-          await Future.delayed(Duration(seconds: 2));
+          await Future.delayed(Duration(seconds: 1));
           retryCount++;
         }
       });
@@ -577,6 +590,9 @@ class ServerModel with ChangeNotifier {
         if (client.authorized) {
           _clients.add(client);
           _addTab(client);
+        } else {
+          // Explicitly reject unauthorized clients to prevent popup
+          bind.cmLoginRes(connId: client.id, res: false);
         }
       } catch (e) {
         debugPrint("Failed to decode clientJson '$clientJson', error $e");
@@ -614,6 +630,8 @@ class ServerModel with ChangeNotifier {
         if (client.authorized) {
              _clients.add(client);
         } else {
+             // Explicitly reject unauthorized clients to prevent popup
+             bind.cmLoginRes(connId: client.id, res: false);
              return;
         }
       }
