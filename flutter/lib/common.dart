@@ -728,6 +728,8 @@ closeConnection({String? id}) {
 }
 
 Future<void> windowOnTop(int? id) async {
+  // Completely disable windowOnTop to prevent focus stealing and accidental clicks/opens
+  /*
   if (!isDesktop) {
     return;
   }
@@ -746,6 +748,7 @@ Future<void> windowOnTop(int? id) async {
       ..show();
     rustDeskWinManager.call(WindowType.Main, kWindowEventShow, {"id": id});
   }
+  */
 }
 
 typedef DialogBuilder = CustomAlertDialog Function(

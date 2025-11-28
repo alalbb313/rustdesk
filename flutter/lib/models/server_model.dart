@@ -676,10 +676,10 @@ class ServerModel with ChangeNotifier {
         .updateConnIdOfKey(MessageKey(client.peerId, client.id));
   }
 
-  void showLoginDialog(Client client) {
-    // Auto-reject to suppress popup and force password
-    sendLoginResponse(client, false);
-  }
+  // showLoginDialog removed to prevent auto-rejection logic that causes popups/errors
+  // void showLoginDialog(Client client) {
+  //   sendLoginResponse(client, false);
+  // }
 
   handleVoiceCall(Client client, bool accept) {
     parent.target?.invokeMethod("cancel_notification", client.id);
@@ -743,7 +743,7 @@ class ServerModel with ChangeNotifier {
       notifyListeners();
     } else {
       bind.cmLoginRes(connId: client.id, res: res);
-      parent.target?.invokeMethod("cancel_notification", client.id);
+      // parent.target?.invokeMethod("cancel_notification", client.id); // Removed to prevent side effects
       final index = _clients.indexOf(client);
       tabController.remove(index);
       _clients.remove(client);
