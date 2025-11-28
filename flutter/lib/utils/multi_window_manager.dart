@@ -522,6 +522,32 @@ class RustDeskMultiWindowManager {
     await _notifyActiveWindow();
   }
 
+  /// Remove window from manager
+  Future<void> removeWindow(int windowId, WindowType type) async {
+    _activeWindows.remove(windowId);
+    _inactiveWindows.remove(windowId);
+    switch (type) {
+      case WindowType.RemoteDesktop:
+        _remoteDesktopWindows.remove(windowId);
+        break;
+      case WindowType.FileTransfer:
+        _fileTransferWindows.remove(windowId);
+        break;
+      case WindowType.ViewCamera:
+        _viewCameraWindows.remove(windowId);
+        break;
+      case WindowType.PortForward:
+        _portForwardWindows.remove(windowId);
+        break;
+      case WindowType.Terminal:
+        _terminalWindows.remove(windowId);
+        break;
+      default:
+        break;
+    }
+    await _notifyActiveWindow();
+  }
+
   /// Remove active window which has [`windowId`]
   ///
   /// [Availability]

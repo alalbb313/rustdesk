@@ -56,6 +56,7 @@ const String kWindowGetScreenList = "get_screen_list";
 const String kWindowDisableGrabKeyboard = "disable_grab_keyboard";
 const String kWindowActionRebuild = "rebuild";
 const String kWindowEventHide = "hide";
+const String kWindowEventClose = "window_close";
 const String kWindowEventShow = "show";
 const String kWindowConnect = "connect";
 const String kWindowBumpMouse = "bump_mouse";

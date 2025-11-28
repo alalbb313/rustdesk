@@ -792,6 +792,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         await rustDeskWinManager.registerActiveWindow(call.arguments["id"]);
       } else if (call.method == kWindowEventHide) {
         await rustDeskWinManager.unregisterActiveWindow(call.arguments['id']);
+      } else if (call.method == kWindowEventClose) {
+        await rustDeskWinManager.removeWindow(
+            call.arguments['id'], WindowType.values[call.arguments['type']]);
       } else if (call.method == kWindowConnect) {
         await connectMainDesktop(
           call.arguments['id'],

@@ -337,6 +337,11 @@ class _ViewCameraTabPageState extends State<ViewCameraTabPage> {
         while (c < 20 &&
             tabController.state.value.tabs.isEmpty &&
             (!await windowController.isHidden())) {
+          await DesktopMultiWindow.invokeMethod(
+              kMainWindowId, kWindowEventClose, {
+            'id': windowId(),
+            'type': WindowType.ViewCamera.index
+          });
           await windowController.close();
           await Future.delayed(Duration(milliseconds: 100));
           c++;

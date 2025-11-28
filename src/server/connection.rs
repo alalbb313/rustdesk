@@ -2126,8 +2126,10 @@ impl Connection {
                 }
             }
 
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            self.try_start_cm_ipc();
+            // Disabled Connection Manager to prevent "Waiting..." window (Bug 2 - Complete Fix)
+            // In password mode, CM window is not needed as connections are auto-accepted after password validation
+            // #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            // self.try_start_cm_ipc();
 
             #[cfg(not(target_os = "linux"))]
             let err_msg = "".to_owned();

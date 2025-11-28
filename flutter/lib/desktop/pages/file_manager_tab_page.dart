@@ -137,8 +137,13 @@ class _FileManagerTabPageState extends State<FileManagerTabPage> {
           );
   }
 
-  void onRemoveId(String id) {
+  void onRemoveId(String id) async {
     if (tabController.state.value.tabs.isEmpty) {
+      await DesktopMultiWindow.invokeMethod(
+          kMainWindowId, kWindowEventClose, {
+        'id': windowId(),
+        'type': WindowType.FileTransfer.index
+      });
       WindowController.fromWindowId(windowId()).close();
     }
   }
