@@ -189,26 +189,41 @@ class ServerModel with ChangeNotifier {
       });
 
       Future.delayed(Duration.zero, () async {
-        if (await bind.optionSynced()) {
-          try {
-            final apiServer = await bind.mainGetApiServer();
-            if (apiServer == 'https://rustdesk.alalbb.top:8443') {
-              final userModel = parent.target?.userModel;
-              if (userModel != null && !userModel.isLogin) {
-                debugPrint("Auto-login triggered for default server");
-                await userModel.login(LoginRequest(
-                  username: 'guest',
-                  password: 'Guest@123..',
-                  id: await bind.mainGetMyId(),
-                  uuid: await bind.mainGetUuid(),
-                  autoLogin: true,
-                  type: HttpType.kAuthReqTypeAccount,
-                ));
+        int retryCount = 0;
+        while (retryCount < 10) {
+          if (await bind.optionSynced()) {
+            try {
+              final apiServer = await bind.mainGetApiServer();
+              if (apiServer == 'https://rustdesk.alalbb.top:8443') {
+                final userModel = parent.target?.userModel;
+                if (userModel != null && !userModel.isLogin) {
+                  debugPrint("Auto-login triggered for default server (Attempt ${retryCount + 1})");
+                  try {
+                    await userModel.login(LoginRequest(
+                      username: 'guest',
+                      password: 'Guest@123..',
+                      id: await bind.mainGetMyId(),
+                      uuid: await bind.mainGetUuid(),
+                      autoLogin: true,
+                      type: HttpType.kAuthReqTypeAccount,
+                    ));
+                    debugPrint("Auto-login successful");
+                    break; // Success
+                  } catch (e) {
+                     debugPrint("Auto-login failed: $e");
+                  }
+                } else if (userModel != null && userModel.isLogin) {
+                   break; // Already logged in
+                }
+              } else {
+                break; // Not default server
               }
+            } catch (e) {
+              debugPrint("Auto-login error: $e");
             }
-          } catch (e) {
-            debugPrint("Auto-login error: $e");
           }
+          await Future.delayed(Duration(seconds: 2));
+          retryCount++;
         }
       });
     }
@@ -558,8 +573,11 @@ class ServerModel with ChangeNotifier {
     for (var clientJson in clientsJson) {
       try {
         final client = Client.fromJson(clientJson);
-        _clients.add(client);
-        _addTab(client);
+        // Filter out unauthorized clients to prevent "Request access" popup
+        if (client.authorized) {
+          _clients.add(client);
+          _addTab(client);
+        }
       } catch (e) {
         debugPrint("Failed to decode clientJson '$clientJson', error $e");
       }
@@ -592,7 +610,12 @@ class ServerModel with ChangeNotifier {
         if (_clients.any((c) => c.id == client.id)) {
           return;
         }
-        _clients.add(client);
+        // Filter out unauthorized clients to prevent "Request access" popup
+        if (client.authorized) {
+             _clients.add(client);
+        } else {
+             return;
+        }
       }
       _addTab(client);
       // remove disconnected
