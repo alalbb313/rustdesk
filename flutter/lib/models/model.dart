@@ -851,63 +851,6 @@ class FfiModel with ChangeNotifier {
     final text = translate('Please select the session you want to connect to');
     final type = "";
 
-    showWindowsSessionsDialog(
-        type, title, text, dialogManager, sessionId, peerId, sessions);
-  }
-
-  /// Handle the message box event based on [evt] and [id].
-  handleMsgBox(Map<String, dynamic> evt, SessionID sessionId, String peerId) {
-    if (parent.target == null) return;
-    final dialogManager = parent.target!.dialogManager;
-    final type = evt['type'];
-    final title = evt['title'];
-    final text = evt['text'];
-    final link = evt['link'];
-    if (type == 're-input-password') {
-      wrongPasswordDialog(sessionId, dialogManager, type, title, text);
-    } else if (type == 'input-2fa') {
-      enter2FaDialog(sessionId, dialogManager);
-    } else if (type == 'input-password') {
-      enterPasswordDialog(sessionId, dialogManager);
-    } else if (type == 'session-login' || type == 'session-re-login') {
-      enterUserLoginDialog(sessionId, dialogManager, 'login_linux_tip', true);
-    } else if (type == 'session-login-password') {
-      enterUserLoginAndPasswordDialog(
-          sessionId, dialogManager, 'login_linux_tip', true);
-    } else if (type == 'terminal-admin-login') {
-      enterUserLoginDialog(
-          sessionId, dialogManager, 'terminal-admin-login-tip', false);
-    } else if (type == 'terminal-admin-login-password') {
-      enterUserLoginAndPasswordDialog(
-          sessionId, dialogManager, 'terminal-admin-login-tip', false);
-    } else if (type == 'restarting') {
-      showMsgBox(sessionId, type, title, text, link, false, dialogManager,
-          hasCancel: false);
-    } else if (type == 'wait-remote-accept-nook') {
-      showWaitAcceptDialog(sessionId, type, title, text, dialogManager);
-    } else if (type == 'on-uac' || type == 'on-foreground-elevated') {
-      showOnBlockDialog(sessionId, type, title, text, dialogManager);
-    } else if (type == 'wait-uac') {
-      showWaitUacDialog(sessionId, dialogManager, type);
-    } else if (type == 'elevation-error') {
-      showElevationError(sessionId, type, title, text, dialogManager);
-    } else if (type == 'relay-hint' || type == 'relay-hint2') {
-      showRelayHintDialog(sessionId, type, title, text, dialogManager, peerId);
-    } else if (text == kMsgboxTextWaitingForImage) {
-      showConnectedWaitingForImage(dialogManager, sessionId, type, title, text);
-    } else if (title == 'Privacy mode') {
-      final hasRetry = evt['hasRetry'] == 'true';
-      showPrivacyFailedDialog(
-          sessionId, type, title, text, link, hasRetry, dialogManager);
-    } else {
-      final hasRetry = evt['hasRetry'] == 'true';
-      showMsgBox(sessionId, type, title, text, link, hasRetry, dialogManager);
-    }
-  }
-
-  handleToast(Map<String, dynamic> evt, SessionID sessionId, String peerId) {
-    final type = evt['type'] ?? 'info';
-    final text = evt['text'] ?? '';
     final durMsc = evt['dur_msec'] ?? 2000;
     final duration = Duration(milliseconds: durMsc);
     if ((text).isEmpty) {
