@@ -247,19 +247,26 @@ impl VideoQoS {
         let highest_fps = self.highest_fps();
         let target_ratio = self.latest_quality().ratio();
 
+        // If custom quality is used, force use the set FPS and skip adaptive logic
+        if self.latest_quality().is_custom() {
+            if let Some(user) = self.users.get_mut(&id) {
+                user.delay.add_delay(delay);
+                user.delay.fps = Some(highest_fps);
+            }
+            self.adjust_fps();
+            return;
+        }
+
         // Adaptive FPS strategy based on quality mode:
-        // - Best Quality: Aim for maximum FPS and bitrate, network permitting
-        // - Balanced: Moderate FPS with adaptive adjustment based on network
-        // - Speed: Prioritize smoothness with lower baseline, but can scale up
-        let (min_fps, normal_fps) = if target_ratio >= BR_BEST {
-            // Best Quality: Start higher, can reach maximum FPS
-            (30, 120)  // min: 30fps for quality, normal: 120fps, can go up to MAX_FPS (360)
+        // - Best Quality: 60-360 FPS
+        // - Balanced: 60-240 FPS
+        // - Speed: 25-120 FPS
+        let (min_fps, normal_fps, mode_max_fps) = if target_ratio >= BR_BEST {
+            (60, 120, 360)
         } else if target_ratio >= BR_BALANCED {
-            // Balanced: Moderate baseline with good scaling potential
-            (25, 90)   // min: 25fps for smoothness, normal: 90fps, can scale to MAX_FPS
+            (60, 90, 240)
         } else {
-            // Speed: Lower baseline but can still scale up when network allows
-            (20, 60)   // min: 20fps minimum, normal: 60fps, can increase based on network
+            (25, 60, 120)
         };
 
         // Calculate minimum acceptable delay-fps product
@@ -327,7 +334,7 @@ impl VideoQoS {
                 user.delay.quick_increase_fps_count = 0;
             }
 
-            fps = fps.clamp(MIN_FPS, highest_fps);
+            fps = fps.clamp(MIN_FPS, highest_fps.min(mode_max_fps));
             // first network delay message
             adjust_ratio = user.delay.fps.is_none();
             user.delay.fps = Some(fps);
@@ -516,6 +523,12 @@ impl VideoQoS {
     // Adjust fps based on network delay and user response time
     fn adjust_fps(&mut self) {
         let highest_fps = self.highest_fps();
+
+        // If custom quality is used, force use the set FPS
+        if self.latest_quality().is_custom() {
+            self.fps = highest_fps;
+            return;
+        }
         // Get minimum fps from all users
         let mut fps = self
             .users
