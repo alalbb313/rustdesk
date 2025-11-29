@@ -112,44 +112,59 @@ customImageQualityWidget(
               ],
             )),
       if (showFps)
-        Obx(() => Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Slider(
-                    value: fpsValue.value,
-                    min: kMinFps,
-                    max: kMaxFps,
-                    divisions: ((kMaxFps - kMinFps) / 5).round(),
-                    onChanged: setFps == null
-                        ? null
-                        : (double value) async {
-                            fpsValue.value = value;
-                            debouncerFps.value = value;
-                          },
-                    onChangeEnd: setFps == null
-                        ? null
-                        : (double value) async {
-                            // Immediately save on release
-                            debugPrint('FPS onChangeEnd: saving $value');
-                            setFps(value);
-                          },
-                  ),
-                ),
-                Expanded(
-                    flex: 1,
-                    child: Text(
-                      '${fpsValue.value.round()}',
-                      style: const TextStyle(fontSize: 15),
-                    )),
-                Expanded(
-                    flex: 2,
-                    child: Text(
-                      translate('FPS'),
-                      style: const TextStyle(fontSize: 15),
-                    ))
-              ],
-            )),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Obx(() => Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Slider(
+                        value: fpsValue.value,
+                        min: kMinFps,
+                        max: kMaxFps,
+                        divisions: ((kMaxFps - kMinFps) / 5).round(),
+                        onChanged: setFps == null
+                            ? null
+                            : (double value) async {
+                                fpsValue.value = value;
+                                // Immediately save on every change
+                                debugPrint('FPS onChanged: immediately saving $value');
+                                setFps(value);
+                                debouncerFps.value = value;
+                              },
+                        onChangeEnd: setFps == null
+                            ? null
+                            : (double value) async {
+                                // Backup save on release
+                                debugPrint('FPS onChangeEnd: backup saving $value');
+                                setFps(value);
+                              },
+                      ),
+                    ),
+                    Expanded(
+                        flex: 1,
+                        child: Text(
+                          '${fpsValue.value.round()}',
+                          style: const TextStyle(fontSize: 15),
+                        )),
+                    Expanded(
+                        flex: 2,
+                        child: Text(
+                          translate('FPS'),
+                          style: const TextStyle(fontSize: 15),
+                        ))
+                  ],
+                )),
+            Padding(
+              padding: const EdgeInsets.only(left: 12, top: 4),
+              child: Text(
+                'Saved: ${bind.mainGetUserDefaultOption(key: 'custom-fps')}',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ),
+          ],
+        ),
     ],
   );
 }
@@ -180,9 +195,11 @@ customImageQualitySetting() {
       setFps: isFpsFixed
           ? null
           : (v) {
-              debugPrint('FPS setFps called: saving $v to $fpsKey');
+              final before = bind.mainGetUserDefaultOption(key: fpsKey);
+              debugPrint('FPS setFps called: $v, before=$before');
               bind.mainSetUserDefaultOption(key: fpsKey, value: v.toString());
-              debugPrint('FPS saved, verifying: ${bind.mainGetUserDefaultOption(key: fpsKey)}');
+              final after = bind.mainGetUserDefaultOption(key: fpsKey);
+              debugPrint('FPS setFps done: after=$after');
             },
       showFps: true,
       showMoreQuality: true);
