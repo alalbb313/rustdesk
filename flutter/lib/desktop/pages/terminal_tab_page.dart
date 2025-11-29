@@ -389,27 +389,6 @@ class _TerminalTabPageState extends State<TerminalTabPage> {
         : SubWindowDragToResizeArea(
             child: tabWidget,
             resizeEdgeSize: stateGlobal.resizeEdgeSize.value,
-            enableResizeEdges: subWindowManagerEnableResizeEdges,
-            windowId: stateGlobal.windowId,
-          );
-  }
-
-  void onRemoveId(String id) async {
-    if (tabController.state.value.tabs.isEmpty) {
-      await DesktopMultiWindow.invokeMethod(
-          kMainWindowId, kWindowEventCloseSubWindow, {
-        'id': windowId(),
-        'type': WindowType.Terminal.index
-      });
-      WindowController.fromWindowId(windowId()).close();
-    }
-  }
-
-  int windowId() {
-    return widget.params["windowId"];
-  }
-
-  Widget _buildAddButton() {
     return ActionIcon(
       message: 'New tab',
       icon: IconFont.add,

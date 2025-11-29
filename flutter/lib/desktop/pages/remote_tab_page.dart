@@ -360,24 +360,6 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
       // If you click other buttons and close in msgbox within a very short period of time, the close may fail.
       // `await WindowController.fromWindowId(windowId()).close();`.
       Future<void> loopCloseWindow() async {
-        int c = 0;
-        final windowController = WindowController.fromWindowId(windowId());
-        while (c < 20 &&
-            tabController.state.value.tabs.isEmpty &&
-            (!await windowController.isHidden())) {
-          await DesktopMultiWindow.invokeMethod(
-              kMainWindowId, kWindowEventCloseSubWindow, {
-            'id': windowId(),
-            'type': WindowType.RemoteDesktop.index
-          });
-          await windowController.close();
-          await Future.delayed(Duration(milliseconds: 100));
-          c++;
-        }
-      }
-
-      loopCloseWindow();
-    }
     ConnectionTypeState.delete(id);
     _update_remote_count();
   }
