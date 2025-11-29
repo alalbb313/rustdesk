@@ -131,6 +131,23 @@ class _FileManagerTabPageState extends State<FileManagerTabPage> {
         ? tabWidget
         : SubWindowDragToResizeArea(
             child: tabWidget,
+            resizeEdgeSize: stateGlobal.resizeEdgeSize.value,
+            enableResizeEdges: subWindowManagerEnableResizeEdges,
+            windowId: stateGlobal.windowId,
+          );
+  }
+
+  void onRemoveId(String id) async {
+    if (tabController.state.value.tabs.isEmpty) {
+      WindowController.fromWindowId(windowId()).close();
+    }
+  }
+
+  int windowId() {
+    return widget.params["windowId"];
+  }
+
+  Future<bool> handleWindowCloseButton() async {
     final connLength = tabController.state.value.tabs.length;
     if (connLength == 1) {
       if (await desktopTryShowTabAuditDialogCloseCancelled(
