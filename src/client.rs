@@ -3229,7 +3229,7 @@ fn _input_os_password(p: String, activate: bool, interface: impl Interface) {
     let input_password = !p.is_empty();
     if activate {
         // Click event is used to bring up the password input box.
-        activate_os(&interface, input_password);
+        // activate_os(&interface, input_password);
         std::thread::sleep(Duration::from_millis(1200));
     }
     if !input_password {
