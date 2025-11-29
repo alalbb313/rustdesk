@@ -247,13 +247,19 @@ impl VideoQoS {
         let highest_fps = self.highest_fps();
         let target_ratio = self.latest_quality().ratio();
 
-        // For bad network, small fps means quick reaction and high quality
+        // Adaptive FPS strategy based on quality mode:
+        // - Best Quality: Aim for maximum FPS and bitrate, network permitting
+        // - Balanced: Moderate FPS with adaptive adjustment based on network
+        // - Speed: Prioritize smoothness with lower baseline, but can scale up
         let (min_fps, normal_fps) = if target_ratio >= BR_BEST {
-            (15, 30)
+            // Best Quality: Start higher, can reach maximum FPS
+            (30, 120)  // min: 30fps for quality, normal: 120fps, can go up to MAX_FPS (360)
         } else if target_ratio >= BR_BALANCED {
-            (20, 40)
+            // Balanced: Moderate baseline with good scaling potential
+            (25, 90)   // min: 25fps for smoothness, normal: 90fps, can scale to MAX_FPS
         } else {
-            (24, 48)
+            // Speed: Lower baseline but can still scale up when network allows
+            (20, 60)   // min: 20fps minimum, normal: 60fps, can increase based on network
         };
 
         // Calculate minimum acceptable delay-fps product

@@ -478,8 +478,8 @@ impl<T: InvokeUiSession> Session<T> {
         if value != "custom" {
             let last_auto_fps = self.lc.read().unwrap().last_auto_fps;
             if last_auto_fps.unwrap_or(usize::MAX) >= 60 {
-                // non custom quality use 60 fps for smoother experience
-                let msg = self.lc.write().unwrap().set_custom_fps(60, false);
+                // non custom quality use MAX_FPS (360) to allow video_qos to adapt freely
+                let msg = self.lc.write().unwrap().set_custom_fps(360, false);
                 self.send(Data::Message(msg));
             }
         }
