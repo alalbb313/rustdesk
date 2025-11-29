@@ -447,7 +447,7 @@ class _DesktopTabState extends State<DesktopTab>
       if (kWindowType != null) {
         await rustDeskWinManager.call(WindowType.Main,
             kWindowEventCloseSubWindow, {"id": kWindowId!, "type": kWindowType!.index});
-        await windowManager.setPreventClose(false);
+        await windowController.setPreventClose(false);
         await windowController.close();
         return;
       }
