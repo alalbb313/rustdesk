@@ -131,9 +131,8 @@ customImageQualityWidget(
                         ? null
                         : (double value) async {
                             // Immediately save on release
-                            if (setFps != null) {
-                              setFps(value);
-                            }
+                            debugPrint('FPS onChangeEnd: saving $value');
+                            setFps(value);
                           },
                   ),
                 ),
@@ -166,6 +165,7 @@ customImageQualitySetting() {
   final initFps =
       (double.tryParse(bind.mainGetUserDefaultOption(key: fpsKey)) ??
           kDefaultFps);
+  debugPrint('FPS customImageQualitySetting: read $initFps from $fpsKey');
   final isFpsFixed = isOptionFixed(fpsKey);
 
   return customImageQualityWidget(
@@ -180,7 +180,9 @@ customImageQualitySetting() {
       setFps: isFpsFixed
           ? null
           : (v) {
+              debugPrint('FPS setFps called: saving $v to $fpsKey');
               bind.mainSetUserDefaultOption(key: fpsKey, value: v.toString());
+              debugPrint('FPS saved, verifying: ${bind.mainGetUserDefaultOption(key: fpsKey)}');
             },
       showFps: true,
       showMoreQuality: true);
