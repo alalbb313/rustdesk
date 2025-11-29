@@ -1793,10 +1793,11 @@ impl<T: InvokeUiSession> Interface for Session<T> {
                 return;
             }
             self.try_change_init_resolution(pi.current_display);
-            let p = self.lc.read().unwrap().should_auto_login();
-            if !p.is_empty() {
-                input_os_password(p, true, self.clone());
-            }
+            // Disabled auto OS password input to prevent unintended keyboard input on controlled device
+            // let p = self.lc.read().unwrap().should_auto_login();
+            // if !p.is_empty() {
+            //     input_os_password(p, true, self.clone());
+            // }
             let current = &pi.displays[pi.current_display as usize];
             self.set_display(
                 current.x,

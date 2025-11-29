@@ -443,7 +443,8 @@ class _DesktopTabState extends State<DesktopTab>
         }
         controller.clear();
       }
-      if (controller.length == 0 && kWindowType != null) {
+      // After clearing tabs or if already empty, close the window properly
+      if (kWindowType != null) {
         await rustDeskWinManager.call(WindowType.Main,
             kWindowEventCloseSubWindow, {"id": kWindowId!, "type": kWindowType!.index});
         await windowManager.setPreventClose(false);
