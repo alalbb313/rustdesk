@@ -30,7 +30,7 @@ customImageQualityWidget(
     initialValue: qualityValue.value,
   );
   final debouncerFps = Debouncer<double>(
-    Duration(milliseconds: 1000),
+    Duration(milliseconds: 200),
     onChanged: setFps,
     initialValue: fpsValue.value,
   );
@@ -126,6 +126,14 @@ customImageQualityWidget(
                         : (double value) async {
                             fpsValue.value = value;
                             debouncerFps.value = value;
+                          },
+                    onChangeEnd: setFps == null
+                        ? null
+                        : (double value) async {
+                            // Immediately save on release
+                            if (setFps != null) {
+                              setFps(value);
+                            }
                           },
                   ),
                 ),

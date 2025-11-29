@@ -449,6 +449,11 @@ class _DesktopTabState extends State<DesktopTab>
             kWindowEventCloseSubWindow, {"id": kWindowId!, "type": kWindowType!.index});
         await windowController.setPreventClose(false);
         await windowController.hide();
+        if (Platform.isMacOS) {
+          // MacOS needs time to properly cleanup sessions (audio, network, etc.)
+          // This matches the original macOSWindowClose delay
+          await Future.delayed(const Duration(milliseconds: 700));
+        }
         await windowController.close();
         return;
       }
