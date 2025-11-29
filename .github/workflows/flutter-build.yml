@@ -9,6 +9,12 @@ on:
       upload-tag:
         type: string
         default: "nightly"
+      build-full:
+        type: boolean
+        default: true
+      build-msi:
+        type: boolean
+        default: true
 
 # NOTE: F-Droid builder script 'flutter/build_fdroid.sh' reads environment
 # variables from this workflow!
@@ -110,13 +116,21 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
 
       # https://github.com/flutter/flutter/issues/155685
+      - name: Cache Custom Flutter Engine
+        id: cache-flutter-engine
+        uses: actions/cache@v3
+        with:
+          path: windows-x64-release.zip
+          key: flutter-engine-windows-x64-main
+
       - name: Replace engine with rustdesk custom flutter engine
         run: |
-          flutter doctor -v
           flutter precache --windows
-          Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
-          Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release
-          mv -Force windows-x64-release/*  C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/
+          if (-not (Test-Path windows-x64-release.zip)) {
+            Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
+          }
+          Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release -Force
+          mv -Force windows-x64-release/*  C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/
 
       - name: Patch flutter
         shell: bash
@@ -124,6 +138,18 @@ jobs:
           cp .github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff $(dirname $(dirname $(which flutter)))
           cd $(dirname $(dirname $(which flutter)))
           [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]] && git apply flutter_3.24.4_dropdown_menu_enableFilter.diff
+
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.LOCALAPPDATA }}\Pub\Cache
+            flutter\.dart_tool
+            flutter\.packages
+            flutter\build
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@v1
@@ -256,7 +282,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Build msi
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: env.UPLOAD_ARTIFACT == 'true' && inputs.build-msi
         run: |
           pushd ./res/msi
           python preprocess.py --arp -d ../../rustdesk
@@ -286,7 +312,7 @@ jobs:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
     # Temporarily disable this action due to additional test is needed.
-    if: False
+    if: inputs.build-full && False
     strategy:
       fail-fast: false
       matrix:
@@ -650,6 +676,18 @@ jobs:
           sed -i -e 's/_setFramesEnabledState(false);/\/\/_setFramesEnabledState(false);/g' ../packages/flutter/lib/src/scheduler/binding.dart
           grep -n '_setFramesEnabledState(false);' ../packages/flutter/lib/src/scheduler/binding.dart
 
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            flutter/.dart_tool
+            flutter/.packages
+            flutter/build
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@v1
         with:
@@ -805,7 +843,7 @@ jobs:
   build-rustdesk-android:
     needs: [generate-bridge]
     name: build rustdesk android apk ${{ matrix.job.target }}
-    if: False
+    if: inputs.build-full && False
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -1282,7 +1320,7 @@ jobs:
   build-rustdesk-linux:
     needs: [generate-bridge]
     name: build rustdesk linux ${{ matrix.job.target }}
-    if: False
+    if: inputs.build-full && False
     runs-on: ${{ matrix.job.on }}
     strategy:
       fail-fast: false
@@ -1848,7 +1886,7 @@ jobs:
     name: Build appimage ${{ matrix.job.target }}
     needs: [build-rustdesk-linux]
     runs-on: ubuntu-22.04
-    if: False
+    if: inputs.build-full && False
     strategy:
       fail-fast: false
       matrix:
@@ -1900,7 +1938,7 @@ jobs:
       - build-rustdesk-linux
       - build-rustdesk-linux-sciter
     runs-on: ${{ matrix.job.on }}
-    if: False
+    if: inputs.build-full && False
     strategy:
       fail-fast: false
       matrix:
@@ -1980,7 +2018,7 @@ jobs:
             flatpak/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
 
   build-rustdesk-web:
-    if: False
+    if: inputs.build-full && False
     name: build-rustdesk-web
     runs-on: ubuntu-22.04
     permissions:
@@ -2001,19 +2039,6 @@ jobs:
           sudo apt-get install -y wget npm
 
       - name: Install flutter
-        uses: subosito/flutter-action@v2.12.0 #https://github.com/subosito/flutter-action/issues/277
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Patch flutter
-        shell: bash
-        run: |
-          cd $(dirname $(dirname $(which flutter)))
-          [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]] && git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
-
-      # https://rustdesk.com/docs/en/dev/build/web/
-      - name: Build web
         shell: bash
         run: |
           pushd flutter/web/js

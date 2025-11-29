@@ -1,0 +1,15 @@
+name: Flutter Release Build
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  run-flutter-release-build:
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: ${{ github.ref_name }}
+      build-full: true
+      build-msi: true
