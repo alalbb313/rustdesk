@@ -822,7 +822,7 @@ jobs:
             --icon "README.txt" 600 190 \
             --window-size 800 400 \
             --app-drop-link 200 350 \
-            rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg \
+            rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-unsigned.dmg \
             dmg_contents/
 
       - name: Upload unsigned macOS app
@@ -830,7 +830,7 @@ jobs:
         uses: actions/upload-artifact@master
         with:
           name: rustdesk-unsigned-macos-${{ matrix.job.arch }}
-          path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg # can not upload the directory directly or tar.gz, which destroy the link structure, causing the codesign failed
+          path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-unsigned.dmg # can not upload the directory directly or tar.gz, which destroy the link structure, causing the codesign failed
 
       - name: Codesign app and create signed dmg
         if: env.MACOS_P12_BASE64 != null && env.UPLOAD_ARTIFACT == 'true'
