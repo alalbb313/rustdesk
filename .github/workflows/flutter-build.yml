@@ -920,9 +920,10 @@ jobs:
       - name: Rename rustdesk
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          for name in rustdesk*??.dmg; do
-              mv "$name" "${name%%.dmg}-${{ matrix.job.arch }}.dmg"
-          done
+          # Only rename the signed/ad-hoc DMG which lacks the arch suffix
+          if [ -f "rustdesk-${{ env.VERSION }}.dmg" ]; then
+            mv "rustdesk-${{ env.VERSION }}.dmg" "rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg"
+          fi
 
       - name: Publish DMG package
         if: env.UPLOAD_ARTIFACT == 'true'
