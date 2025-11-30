@@ -279,6 +279,7 @@ jobs:
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
 
       - name: Add MSBuild to PATH
+        if: env.UPLOAD_ARTIFACT == 'true' && inputs.build-msi
         uses: microsoft/setup-msbuild@v2
 
       - name: Build msi
@@ -499,6 +500,28 @@ jobs:
         run: |
           cd $(dirname $(dirname $(which flutter)))
           [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]] && git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
+
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            flutter/.dart_tool
+            flutter/.packages
+            flutter/build
+          key: ${{ runner.os }}-ios-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-ios-flutter-
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v3
+        with:
+          path: |
+            flutter/ios/Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
@@ -935,6 +958,28 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.ANDROID_FLUTTER_VERSION }}
 
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            flutter/.dart_tool
+            flutter/.packages
+            flutter/build
+          key: ${{ runner.os }}-android-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-android-flutter-
+
       - name: Patch flutter
         run: |
           cd $(dirname $(dirname $(which flutter)))
@@ -1207,6 +1252,28 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.ANDROID_FLUTTER_VERSION }}
 
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            flutter/.dart_tool
+            flutter/.packages
+            flutter/build
+          key: ${{ runner.os }}-android-universal-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-android-universal-flutter-
+
       - name: Patch flutter
         run: |
           cd $(dirname $(dirname $(which flutter)))
@@ -1385,6 +1452,11 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
+
+      - uses: Swatinem/rust-cache@v2
+        if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
+        with:
+          prefix-key: ${{ matrix.job.target }}
 
       - name: Save Rust toolchain version
         run: |
@@ -1717,6 +1789,10 @@ jobs:
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: ${{ matrix.job.target }}-sciter
+
       - name: Save Rust toolchain version
         run: |
           RUST_TOOLCHAIN_VERSION=$(cargo --version | awk '{print $2}')
@@ -2037,6 +2113,16 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y wget npm
+
+      - name: Cache npm packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            flutter/web/js/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
       - name: Install flutter
         shell: bash

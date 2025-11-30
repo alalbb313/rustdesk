@@ -22,6 +22,7 @@ customImageQualityWidget(
   }
   final qualityValue = initQuality.obs;
   final fpsValue = initFps.obs;
+  final RxString savedFpsValue = RxString(initFps.round().toString());
 
   final RxBool moreQualityChecked = RxBool(qualityValue.value > kMaxQuality);
   final debouncerQuality = Debouncer<double>(
@@ -131,6 +132,12 @@ customImageQualityWidget(
                                 // Immediately save on every change
                                 debugPrint('FPS onChanged: immediately saving $value');
                                 setFps(value);
+                                // Update saved display after a short delay
+                                Future.delayed(Duration(milliseconds: 50), () {
+                                  final saved = bind.mainGetUserDefaultOption(key: 'custom-fps');
+                                  savedFpsValue.value = saved.isEmpty ? value.round().toString() : saved;
+                                  debugPrint('FPS savedFpsValue updated to: ${savedFpsValue.value}');
+                                });
                                 debouncerFps.value = value;
                               },
                         onChangeEnd: setFps == null
@@ -139,6 +146,12 @@ customImageQualityWidget(
                                 // Backup save on release
                                 debugPrint('FPS onChangeEnd: backup saving $value');
                                 setFps(value);
+                                // Update saved display
+                                Future.delayed(Duration(milliseconds: 50), () {
+                                  final saved = bind.mainGetUserDefaultOption(key: 'custom-fps');
+                                  savedFpsValue.value = saved.isEmpty ? value.round().toString() : saved;
+                                  debugPrint('FPS savedFpsValue updated to: ${savedFpsValue.value}');
+                                });
                               },
                       ),
                     ),
@@ -158,10 +171,10 @@ customImageQualityWidget(
                 )),
             Padding(
               padding: const EdgeInsets.only(left: 12, top: 4),
-              child: Text(
-                'Saved: ${bind.mainGetUserDefaultOption(key: 'custom-fps')}',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
+              child: Obx(() => Text(
+                    'Saved: ${savedFpsValue.value}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  )),
             ),
           ],
         ),

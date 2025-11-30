@@ -7,6 +7,7 @@ import argparse
 # 内置默认参数（当用户没有外部传入时使用）
 # ------------------------
 DEFAULT_TAG = "1.4.4"          # 默认 tag
+DEFAULT_BRANCH = "Jerry"       # 默认目标分支（安全检查用，None 表示不限制）
 ENABLE_AUTO_COMMIT = True      # 自动 git add + commit
 ENABLE_FORCE_PUSH = True       # 默认使用 -f 强制 push
 ENABLE_BRANCH_PROTECT = False   # 保护 master/main 默认不允许覆盖
@@ -56,6 +57,7 @@ def main():
     parser.add_argument("--no-autotag", action="store_true", help="禁用自动递增 tag")
     parser.add_argument("--no-delete-tag", action="store_true", help="禁用删除远程旧 tag")
     parser.add_argument("--no-tag", action="store_true", help="禁用创建新 tag")
+    parser.add_argument("--branch", help="指定目标分支（如果当前分支不匹配，脚本将终止）")
     parser.add_argument("--quiet", action="store_true", help="静默模式")
 
     args = parser.parse_args()
@@ -65,6 +67,7 @@ def main():
     # 外部参数优先，其次才使用内置默认
     # ------------------------
     tag_to_use = args.tag if args.tag else DEFAULT_TAG
+    target_branch = args.branch if args.branch else DEFAULT_BRANCH
     auto_commit = ENABLE_AUTO_COMMIT and not args.no_commit
     force_push = ENABLE_FORCE_PUSH and not args.no_force
     branch_protect = ENABLE_BRANCH_PROTECT and not args.no_protect
@@ -81,6 +84,12 @@ def main():
     # 当前分支
     branch = get_current_branch()
     print(f"📌 当前分支：{branch}")
+
+    # 分支检查
+    if target_branch and branch != target_branch:
+        print(f"❌ 错误：当前分支 ({branch}) 与目标分支 ({target_branch}) 不匹配！")
+        print(f"安全检查失败。请切换到 {target_branch} 分支，或使用 --branch 指定当前分支。")
+        sys.exit(1)
 
     if branch in ("master", "main") and branch_protect:
         print("❌ 默认禁止覆盖 master/main。使用 --no-protect 可关闭保护")
