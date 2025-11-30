@@ -925,14 +925,15 @@ jobs:
             mv "rustdesk-${{ env.VERSION }}.dmg" "rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg"
           fi
 
-      - name: Publish DMG package
+      - name: Publish DMG packages
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            rustdesk*-${{ matrix.job.arch }}.dmg
+            rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-unsigned.dmg
+            rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg
 
   publish_unsigned:
     needs:
