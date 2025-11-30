@@ -312,7 +312,7 @@ jobs:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
     # Temporarily disable this action due to additional test is needed.
-    if: inputs.build-full && False
+    if: inputs.build-full
     strategy:
       fail-fast: false
       matrix:
@@ -459,7 +459,7 @@ jobs:
             ./SignOutput/rustdesk-*.exe
 
   build-rustdesk-ios:
-    if: False
+    if: inputs.build-full
     name: build rustdesk ios ipa
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -803,7 +803,7 @@ jobs:
       - build-for-windows-flutter
       - build-for-windows-sciter
     runs-on: ubuntu-latest
-    if: False
+    if: inputs.build-full
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@master
@@ -843,7 +843,7 @@ jobs:
   build-rustdesk-android:
     needs: [generate-bridge]
     name: build rustdesk android apk ${{ matrix.job.target }}
-    if: inputs.build-full && False
+    if: inputs.build-full
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -1320,7 +1320,7 @@ jobs:
   build-rustdesk-linux:
     needs: [generate-bridge]
     name: build rustdesk linux ${{ matrix.job.target }}
-    if: inputs.build-full && False
+    if: inputs.build-full
     runs-on: ${{ matrix.job.on }}
     strategy:
       fail-fast: false
@@ -1656,7 +1656,7 @@ jobs:
             res/rustdesk-${{ env.VERSION }}*.zst
 
   build-rustdesk-linux-sciter:
-    if: False
+    if: inputs.build-full
     runs-on: ${{ matrix.job.on }}
     name: build-rustdesk-linux-sciter ${{ matrix.job.target }}
     strategy:
@@ -1886,7 +1886,7 @@ jobs:
     name: Build appimage ${{ matrix.job.target }}
     needs: [build-rustdesk-linux]
     runs-on: ubuntu-22.04
-    if: inputs.build-full && False
+    if: inputs.build-full
     strategy:
       fail-fast: false
       matrix:
@@ -1938,7 +1938,7 @@ jobs:
       - build-rustdesk-linux
       - build-rustdesk-linux-sciter
     runs-on: ${{ matrix.job.on }}
-    if: inputs.build-full && False
+    if: inputs.build-full
     strategy:
       fail-fast: false
       matrix:
@@ -2018,7 +2018,7 @@ jobs:
             flatpak/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
 
   build-rustdesk-web:
-    if: inputs.build-full && False
+    if: inputs.build-full
     name: build-rustdesk-web
     runs-on: ubuntu-22.04
     permissions:
