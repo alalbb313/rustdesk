@@ -6,14 +6,14 @@ import argparse
 # ------------------------
 # 内置默认参数（当用户没有外部传入时使用）
 # ------------------------
-DEFAULT_TAG = "1.4.4"          # 默认 tag
+DEFAULT_TAG = "8.8.8"          # 默认 tag
 DEFAULT_BRANCH = "Jerry"       # 默认目标分支（安全检查用，None 表示不限制）
 ENABLE_AUTO_COMMIT = True      # 自动 git add + commit
 ENABLE_FORCE_PUSH = True       # 默认使用 -f 强制 push
-ENABLE_BRANCH_PROTECT = False   # 保护 master/main 默认不允许覆盖
+ENABLE_BRANCH_PROTECT = True   # 保护 master/main 默认不允许覆盖
 ENABLE_AUTO_INCREMENT_TAG = False   # 自动递增 tag（仅当未指定 tag 且未传外部 tag 时）
 ENABLE_DELETE_OLD_TAG = True   # 删除远程已有同名 tag
-ENABLE_CREATE_TAG = True       # 创建新 tag
+ENABLE_CREATE_TAG = True        # 创建新 tag
 ENABLE_QUIET = False           # 静默模式（隐藏 git 输出）
 
 # ------------------------

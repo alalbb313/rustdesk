@@ -32,7 +32,7 @@ use hbb_common::{
     futures::{SinkExt, StreamExt},
     get_time, get_version_number,
     message_proto::{option_message::BoolOption, permission_info::Permission},
-    password_security::{self as password, ApproveMode},
+    password_security::{self as password},
     sha2::{Digest, Sha256},
     sleep, timeout,
     tokio::{

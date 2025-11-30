@@ -29,7 +29,6 @@ use uuid::Uuid;
 
 use crate::{
     check_port,
-    common::input::{MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_TYPE_DOWN, MOUSE_TYPE_UP},
     create_symmetric_key_msg, decode_id_pk, get_rs_pk, is_keyboard_mode_supported,
     kcp_stream::KcpStream,
     secure_tcp,

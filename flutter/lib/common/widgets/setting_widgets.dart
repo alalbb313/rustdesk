@@ -22,7 +22,7 @@ customImageQualityWidget(
   }
   final qualityValue = initQuality.obs;
   final fpsValue = initFps.obs;
-  final RxString savedFpsValue = RxString(initFps.round().toString());
+
 
   final RxBool moreQualityChecked = RxBool(qualityValue.value > kMaxQuality);
   final debouncerQuality = Debouncer<double>(
@@ -130,28 +130,18 @@ customImageQualityWidget(
                             : (double value) async {
                                 fpsValue.value = value;
                                 // Immediately save on every change
-                                debugPrint('FPS onChanged: immediately saving $value');
+
                                 setFps(value);
-                                // Update saved display after a short delay
-                                Future.delayed(Duration(milliseconds: 50), () {
-                                  final saved = bind.mainGetUserDefaultOption(key: 'custom-fps');
-                                  savedFpsValue.value = saved.isEmpty ? value.round().toString() : saved;
-                                  debugPrint('FPS savedFpsValue updated to: ${savedFpsValue.value}');
-                                });
+
                                 debouncerFps.value = value;
                               },
                         onChangeEnd: setFps == null
                             ? null
                             : (double value) async {
                                 // Backup save on release
-                                debugPrint('FPS onChangeEnd: backup saving $value');
+
                                 setFps(value);
-                                // Update saved display
-                                Future.delayed(Duration(milliseconds: 50), () {
-                                  final saved = bind.mainGetUserDefaultOption(key: 'custom-fps');
-                                  savedFpsValue.value = saved.isEmpty ? value.round().toString() : saved;
-                                  debugPrint('FPS savedFpsValue updated to: ${savedFpsValue.value}');
-                                });
+
                               },
                       ),
                     ),
@@ -169,13 +159,7 @@ customImageQualityWidget(
                         ))
                   ],
                 )),
-            Padding(
-              padding: const EdgeInsets.only(left: 12, top: 4),
-              child: Obx(() => Text(
-                    'Saved: ${savedFpsValue.value}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
-                  )),
-            ),
+
           ],
         ),
     ],
@@ -193,7 +177,7 @@ customImageQualitySetting() {
   final initFps =
       (double.tryParse(bind.mainGetUserDefaultOption(key: fpsKey)) ??
           kDefaultFps);
-  debugPrint('FPS customImageQualitySetting: read $initFps from $fpsKey');
+
   final isFpsFixed = isOptionFixed(fpsKey);
 
   return customImageQualityWidget(
@@ -208,11 +192,7 @@ customImageQualitySetting() {
       setFps: isFpsFixed
           ? null
           : (v) {
-              final before = bind.mainGetUserDefaultOption(key: fpsKey);
-              debugPrint('FPS setFps called: $v, before=$before');
               bind.mainSetUserDefaultOption(key: fpsKey, value: v.toString());
-              final after = bind.mainGetUserDefaultOption(key: fpsKey);
-              debugPrint('FPS setFps done: after=$after');
             },
       showFps: true,
       showMoreQuality: true);
