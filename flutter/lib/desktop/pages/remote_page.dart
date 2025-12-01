@@ -122,9 +122,14 @@ class _RemotePageState extends State<RemotePage>
           _ffi.ffiModel.pi.platform, _ffi.dialogManager);
       _ffi.recordingModel
           .updateStatus(bind.sessionGetIsRecording(sessionId: _ffi.sessionId));
-      
-      // Auto-resize window to match remote display resolution
-      if (isDesktop && !isWeb) {
+    });
+    
+    // Auto-resize window to match remote display resolution when peer info is set
+    if (isDesktop && !isWeb) {
+      // Use ever to listen to pi.isSet changes
+      ever(_ffi.ffiModel.pi.isSet, (bool isSet) async {
+        if (!isSet) return;
+        
         try {
           // Ensure window manager is ready
           await windowManager.ensureInitialized();
@@ -170,8 +175,18 @@ class _RemotePageState extends State<RemotePage>
               final finalHeight = targetHeight > maxHeight ? maxHeight : targetHeight;
               
               debugPrint("Auto-resize: Resizing window to ${finalWidth}x${finalHeight}");
-              await windowManager.setSize(Size(finalWidth, finalHeight));
-              await windowManager.center();
+              
+              // Get the window ID for this session
+              final windowId = kWindowId ?? stateGlobal.windowId;
+              if (windowId != null) {
+                final wc = WindowController.fromWindowId(windowId);
+                await wc.setSize(Size(finalWidth, finalHeight));
+                await wc.center();
+              } else {
+                // Fallback to windowManager for main window
+                await windowManager.setSize(Size(finalWidth, finalHeight));
+                await windowManager.center();
+              }
             }
           } else {
              debugPrint("Auto-resize: displaysRect is null");
@@ -179,8 +194,8 @@ class _RemotePageState extends State<RemotePage>
         } catch (e) {
           debugPrint('Failed to auto-resize window: $e');
         }
-      }
-    });
+      });
+    }
     _ffi.canvasModel.initializeEdgeScrollFallback(this);
     _ffi.start(
       widget.id,
