@@ -148,20 +148,20 @@ class _RemotePageState extends State<RemotePage>
             final remoteHeight = rect.height;
             
             // Estimate window decorations and UI overhead
-            // Tab bar is approx 40. Window title bar/borders vary by OS.
+            // Tab bar is kDesktopRemoteTabBarHeight (28.0). Window title bar/borders vary by OS.
             double widthOverhead = 0;
             double heightOverhead = 0;
             
             if (isWindows) {
                 widthOverhead = 16; // Borders (approx 8px per side)
-                heightOverhead = 40 + 40; // Title bar + Tab bar (approx)
+                heightOverhead = 32 + kDesktopRemoteTabBarHeight; // Title bar (approx 32) + Tab bar
             } else if (isMacOS) {
-                heightOverhead = 28 + 40; // Title bar + Tab bar
+                heightOverhead = 28 + kDesktopRemoteTabBarHeight; // Title bar (approx 28) + Tab bar
             } else if (isLinux) {
-                heightOverhead = 30 + 40; // Title bar + Tab bar
+                heightOverhead = 30 + kDesktopRemoteTabBarHeight; // Title bar (approx 30) + Tab bar
             } else {
                 // Fallback
-                heightOverhead = 80;
+                heightOverhead = 60;
             }
             
             final targetWidth = remoteWidth + widthOverhead;
