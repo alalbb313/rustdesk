@@ -126,9 +126,12 @@ class _RemotePageState extends State<RemotePage>
     
     // Auto-resize window to match remote display resolution when peer info is set
     if (isDesktop && !isWeb) {
-      // Use ever to listen to pi.isSet changes
-      ever(_ffi.ffiModel.pi.isSet, (bool isSet) async {
+      // Use once to listen to pi.isSet becoming true (only fires once)
+      once(_ffi.ffiModel.pi.isSet, (bool isSet) async {
         if (!isSet) return;
+        
+        // Add a small delay to ensure displays are fully populated
+        await Future.delayed(Duration(milliseconds: 100));
         
         try {
           // Use displaysRect to get the total size of the remote view (handles single and multi-monitor)
@@ -177,33 +180,20 @@ class _RemotePageState extends State<RemotePage>
               final windowId = stateGlobal.windowId;
               final wc = WindowController.fromWindowId(windowId);
               
-              // Get current frame to preserve position, or center if first time
-              Rect newFrame;
-              try {
-                final currentFrame = await wc.getFrame();
-                // Keep current position, just change size
-                newFrame = Rect.fromLTWH(
-                  currentFrame.left,
-                  currentFrame.top,
-                  finalWidth,
-                  finalHeight
-                );
-              } catch (e) {
-                // If can't get current frame, center the window
-                debugPrint("Could not get current frame: $e, will center window");
-                final screenCenter = Offset(
-                  screen.left + (screen.width - finalWidth) / 2,
-                  screen.top + (screen.height - finalHeight) / 2
-                );
-                newFrame = Rect.fromLTWH(
-                  screenCenter.dx,
-                  screenCenter.dy,
-                  finalWidth,
-                  finalHeight
-                );
-              }
+              // Always center the window after resizing
+              final screenCenter = Offset(
+                screen.left + (screen.width - finalWidth) / 2,
+                screen.top + (screen.height - finalHeight) / 2
+              );
+              final newFrame = Rect.fromLTWH(
+                screenCenter.dx,
+                screenCenter.dy,
+                finalWidth,
+                finalHeight
+              );
               
               await wc.setFrame(newFrame);
+              debugPrint("Auto-resize: Window resized and centered successfully");
             }
           } else {
              debugPrint("Auto-resize: displaysRect is null");
