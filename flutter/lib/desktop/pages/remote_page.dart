@@ -172,9 +172,9 @@ class _RemotePageState extends State<RemotePage>
             if (screenRects.isNotEmpty) {
               // Use the primary screen or the first available one for bounds checking
               final screen = screenRects[0];
-              // Leave some margin (5% width, 10% height)
-              final maxWidth = screen.width * 0.95;
-              final maxHeight = screen.height * 0.9;
+              // Allow up to 100% of screen size
+              final maxWidth = screen.width;
+              final maxHeight = screen.height;
               
               final finalWidth = targetWidth > maxWidth ? maxWidth : targetWidth;
               final finalHeight = targetHeight > maxHeight ? maxHeight : targetHeight;
