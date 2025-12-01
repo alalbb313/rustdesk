@@ -788,28 +788,6 @@ jobs:
           mkdir -p dmg_contents
           cp -R ./flutter/build/macos/Build/Products/Release/RustDesk.app dmg_contents/
           
-          # Copy and prepare permission setup script
-          cp ./res/setup_permissions.sh dmg_contents/Setup_Permissions.command
-          chmod +x dmg_contents/Setup_Permissions.command
-          
-          # Create README
-          cat > dmg_contents/README.txt << 'EOF'
-          RustDesk Installation / RustDesk 安装
-
-          1. Drag RustDesk.app to Applications folder
-             将 RustDesk.app 拖到应用程序文件夹
-
-          2. Double-click "Setup_Permissions.command" to configure permissions
-             双击 "Setup_Permissions.command" 配置权限
-
-          3. Launch RustDesk from Applications
-             从应用程序启动 RustDesk
-
-          For detailed instructions, visit:
-          详细说明请访问：
-          https://github.com/YOUR_USERNAME/rustdesk/blob/master/MACOS_INSTALL.md
-          EOF
-          
           # Create DMG
           CREATE_DMG="$(command -v create-dmg)"
           CREATE_DMG="$(readlink -f "$CREATE_DMG")"
@@ -818,10 +796,8 @@ jobs:
             --volname "RustDesk" \
             --icon "RustDesk.app" 200 190 \
             --hide-extension "RustDesk.app" \
-            --icon "Setup_Permissions.command" 400 190 \
-            --icon "README.txt" 600 190 \
-            --window-size 800 400 \
-            --app-drop-link 200 350 \
+            --window-size 600 400 \
+            --app-drop-link 400 190 \
             rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-unsigned.dmg \
             dmg_contents/
 
@@ -846,36 +822,16 @@ jobs:
           rm -rf *.dmg || true
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict ./flutter/build/macos/Build/Products/Release/RustDesk.app -vvv
           
-          # Prepare DMG contents with script
+          # Prepare DMG contents
           mkdir -p dmg_contents_signed
           cp -R ./flutter/build/macos/Build/Products/Release/RustDesk.app dmg_contents_signed/
-          cp ./res/setup_permissions.sh dmg_contents_signed/Setup_Permissions.command
-          chmod +x dmg_contents_signed/Setup_Permissions.command
-          
-          # Sign the Setup_Permissions.command script
-          codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} dmg_contents_signed/Setup_Permissions.command -vvv
-          
-          cat > dmg_contents_signed/README.txt << 'EOF'
-          RustDesk Installation / RustDesk 安装
-
-          1. Drag RustDesk.app to Applications folder
-             将 RustDesk.app 拖到应用程序文件夹
-
-          2. Double-click "Setup_Permissions.command" to configure permissions
-             双击 "Setup_Permissions.command" 配置权限
-
-          3. Launch RustDesk from Applications
-             从应用程序启动 RustDesk
-          EOF
           
           create-dmg \
             --volname "RustDesk" \
             --icon "RustDesk.app" 200 190 \
             --hide-extension "RustDesk.app" \
-            --icon "Setup_Permissions.command" 400 190 \
-            --icon "README.txt" 600 190 \
-            --window-size 800 400 \
-            --app-drop-link 200 350 \
+            --window-size 600 400 \
+            --app-drop-link 400 190 \
             rustdesk-${{ env.VERSION }}.dmg \
             dmg_contents_signed/
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
@@ -889,27 +845,9 @@ jobs:
           # This won't pass Gatekeeper, but prevents "damaged" errors
           codesign --force --deep --sign - ./flutter/build/macos/Build/Products/Release/RustDesk.app
           
-          # Prepare DMG contents with script
+          # Prepare DMG contents
           mkdir -p dmg_contents_adhoc
           cp -R ./flutter/build/macos/Build/Products/Release/RustDesk.app dmg_contents_adhoc/
-          cp ./res/setup_permissions.sh dmg_contents_adhoc/Setup_Permissions.command
-          chmod +x dmg_contents_adhoc/Setup_Permissions.command
-          
-          # Ad-hoc sign the Setup_Permissions.command script
-          codesign --force --deep --sign - dmg_contents_adhoc/Setup_Permissions.command
-          
-          cat > dmg_contents_adhoc/README.txt << 'EOF'
-          RustDesk Installation / RustDesk 安装
-
-          1. Drag RustDesk.app to Applications folder
-             将 RustDesk.app 拖到应用程序文件夹
-
-          2. Double-click "Setup_Permissions.command" to configure permissions
-             双击 "Setup_Permissions.command" 配置权限
-
-          3. Launch RustDesk from Applications
-             从应用程序启动 RustDesk
-          EOF
           
           CREATE_DMG="$(command -v create-dmg)"
           CREATE_DMG="$(readlink -f "$CREATE_DMG")"
@@ -918,10 +856,8 @@ jobs:
             --volname "RustDesk" \
             --icon "RustDesk.app" 200 190 \
             --hide-extension "RustDesk.app" \
-            --icon "Setup_Permissions.command" 400 190 \
-            --icon "README.txt" 600 190 \
-            --window-size 800 400 \
-            --app-drop-link 200 350 \
+            --window-size 600 400 \
+            --app-drop-link 400 190 \
             rustdesk-${{ env.VERSION }}.dmg \
             dmg_contents_adhoc/
 

@@ -115,12 +115,48 @@ class _RemotePageState extends State<RemotePage>
     super.initState();
     _ffi = FFI(widget.sessionId);
     Get.put<FFI>(_ffi, tag: widget.id);
-    _ffi.imageModel.addCallbackOnFirstImage((String peerId) {
+    _ffi.imageModel.addCallbackOnFirstImage((String peerId) async {
       _ffi.canvasModel.activateLocalCursor();
       showKBLayoutTypeChooserIfNeeded(
           _ffi.ffiModel.pi.platform, _ffi.dialogManager);
       _ffi.recordingModel
           .updateStatus(bind.sessionGetIsRecording(sessionId: _ffi.sessionId));
+      
+      // Auto-resize window to match remote display resolution
+      if (isDesktop && !isWeb) {
+        try {
+          final displays = _ffi.ffiModel.pi.getCurDisplays();
+          if (displays.isNotEmpty) {
+            final display = displays[0];
+            final remoteWidth = display.width.toDouble();
+            final remoteHeight = display.height.toDouble();
+            
+            // Add some padding for window decorations and toolbar
+            const toolbarHeight = 60.0;
+            const windowPadding = 20.0;
+            
+            final windowWidth = remoteWidth + windowPadding;
+            final windowHeight = remoteHeight + toolbarHeight + windowPadding;
+            
+            // Get primary screen size to ensure window doesn't exceed screen bounds
+            final screenRects = await getScreenRectList();
+            if (screenRects.isNotEmpty) {
+              final primaryScreen = screenRects[0];
+              final maxWidth = primaryScreen.width * 0.9;
+              final maxHeight = primaryScreen.height * 0.9;
+              
+              // Calculate final size (don't exceed 90% of screen size)
+              final finalWidth = windowWidth > maxWidth ? maxWidth : windowWidth;
+              final finalHeight = windowHeight > maxHeight ? maxHeight : windowHeight;
+              
+              await windowManager.setSize(Size(finalWidth, finalHeight));
+              await windowManager.center();
+            }
+          }
+        } catch (e) {
+          debugPrint('Failed to auto-resize window: $e');
+        }
+      }
     });
     _ffi.canvasModel.initializeEdgeScrollFallback(this);
     _ffi.start(
