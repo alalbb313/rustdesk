@@ -1141,8 +1141,8 @@ impl<T: InvokeUiSession> Remote<T> {
             }
         });
         let custom_fps = self.handler.lc.read().unwrap().custom_fps.clone();
-        let custom_fps = custom_fps.lock().unwrap().clone();
-        let mut custom_fps = custom_fps.unwrap_or(30);
+        let custom_fps_opt = custom_fps.lock().unwrap().clone();
+        let mut custom_fps = custom_fps_opt.unwrap_or(30);
         if custom_fps < 5 || custom_fps > 360 {
             custom_fps = 60;
         }
@@ -1160,66 +1160,83 @@ impl<T: InvokeUiSession> Remote<T> {
             .map(|v| *v.1.decode_fps.read().unwrap())
             .min()
             .flatten();
-        let Some(min_decode_fps) = min_decode_fps else {
-            return;
-        };
-        let mut limited_fps = if direct {
-            min_decode_fps * 9 / 10 // 30 got 27
-        } else {
-            min_decode_fps * 4 / 5 // 30 got 24
-        };
-        if limited_fps > custom_fps {
-            limited_fps = custom_fps;
-        }
-        let last_auto_fps = self.handler.lc.read().unwrap().last_auto_fps.clone();
-        let displays = self.video_threads.keys().cloned().collect::<Vec<_>>();
-        let mut fps_trending = |display: usize| {
-            let thread = self.video_threads.get_mut(&display)?;
-            let ctl = &mut thread.fps_control;
-            let len = thread.video_queue.read().unwrap().len();
-            let decode_fps = thread.decode_fps.read().unwrap().clone()?;
-            let last_auto_fps = last_auto_fps.clone().unwrap_or(custom_fps as _);
-            if ctl.inactive_counter > inactive_threshold {
-                return None;
-            }
-            if len > 1 && last_auto_fps > limited_fps || len > std::cmp::max(1, decode_fps / 2) {
-                ctl.idle_counter = 0;
-                return Some(false);
-            }
-            if len <= 1 {
-                ctl.idle_counter += 1;
-                if ctl.idle_counter > 3 && last_auto_fps + 3 <= limited_fps {
-                    return Some(true);
-                }
-            }
-            if len > 1 {
-                ctl.idle_counter = 0;
-            }
-            None
-        };
-        let trendings: Vec<_> = displays.iter().map(|k| fps_trending(*k)).collect();
-        let should_decrease = trendings.iter().any(|v| *v == Some(false));
-        let should_increase = !should_decrease && trendings.iter().any(|v| *v == Some(true));
-        if last_auto_fps.is_none() || should_decrease || should_increase {
-            // limited_fps to ensure decoding is faster than encoding
-            let mut auto_fps = limited_fps;
-            if should_decrease && limited_fps < max_queue_len {
-                auto_fps = limited_fps / 2;
-            }
-            if auto_fps < 1 {
-                auto_fps = 1;
-            }
-            if Some(auto_fps) != last_auto_fps {
+        if let Some(custom_fps) = custom_fps_opt {
+            let last_auto_fps = self.handler.lc.read().unwrap().last_auto_fps.clone();
+            if last_auto_fps != Some(custom_fps) {
                 let mut misc = Misc::new();
                 misc.set_option(OptionMessage {
-                    custom_fps: auto_fps as _,
+                    custom_fps: custom_fps as _,
                     ..Default::default()
                 });
                 let mut msg = Message::new();
                 msg.set_misc(misc);
                 self.sender.send(Data::Message(msg)).ok();
-                log::info!("Set fps to {}", auto_fps);
-                self.handler.lc.write().unwrap().last_auto_fps = Some(auto_fps);
+                log::info!("Force set fps to {}", custom_fps);
+                self.handler.lc.write().unwrap().last_auto_fps = Some(custom_fps);
+            }
+        } else {
+            let Some(min_decode_fps) = min_decode_fps else {
+                return;
+            };
+            let mut limited_fps = if direct {
+                min_decode_fps * 9 / 10 // 30 got 27
+            } else {
+                min_decode_fps * 4 / 5 // 30 got 24
+            };
+            if limited_fps > custom_fps {
+                limited_fps = custom_fps;
+            }
+            let last_auto_fps = self.handler.lc.read().unwrap().last_auto_fps.clone();
+            let displays = self.video_threads.keys().cloned().collect::<Vec<_>>();
+            let mut fps_trending = |display: usize| {
+                let thread = self.video_threads.get_mut(&display)?;
+                let ctl = &mut thread.fps_control;
+                let len = thread.video_queue.read().unwrap().len();
+                let decode_fps = thread.decode_fps.read().unwrap().clone()?;
+                let last_auto_fps = last_auto_fps.clone().unwrap_or(custom_fps as _);
+                if ctl.inactive_counter > inactive_threshold {
+                    return None;
+                }
+                if len > 1 && last_auto_fps > limited_fps || len > std::cmp::max(1, decode_fps / 2)
+                {
+                    ctl.idle_counter = 0;
+                    return Some(false);
+                }
+                if len <= 1 {
+                    ctl.idle_counter += 1;
+                    if ctl.idle_counter > 3 && last_auto_fps + 3 <= limited_fps {
+                        return Some(true);
+                    }
+                }
+                if len > 1 {
+                    ctl.idle_counter = 0;
+                }
+                None
+            };
+            let trendings: Vec<_> = displays.iter().map(|k| fps_trending(*k)).collect();
+            let should_decrease = trendings.iter().any(|v| *v == Some(false));
+            let should_increase = !should_decrease && trendings.iter().any(|v| *v == Some(true));
+            if last_auto_fps.is_none() || should_decrease || should_increase {
+                // limited_fps to ensure decoding is faster than encoding
+                let mut auto_fps = limited_fps;
+                if should_decrease && limited_fps < max_queue_len {
+                    auto_fps = limited_fps / 2;
+                }
+                if auto_fps < 1 {
+                    auto_fps = 1;
+                }
+                if Some(auto_fps) != last_auto_fps {
+                    let mut misc = Misc::new();
+                    misc.set_option(OptionMessage {
+                        custom_fps: auto_fps as _,
+                        ..Default::default()
+                    });
+                    let mut msg = Message::new();
+                    msg.set_misc(misc);
+                    self.sender.send(Data::Message(msg)).ok();
+                    log::info!("Set fps to {}", auto_fps);
+                    self.handler.lc.write().unwrap().last_auto_fps = Some(auto_fps);
+                }
             }
         }
         // send refresh

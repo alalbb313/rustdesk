@@ -29,6 +29,7 @@ class MainFlutterWindow: NSWindow {
         
         // Enable fullscreen button in title bar
         self.collectionBehavior = [.fullScreenPrimary]
+        self.styleMask.formUnion([.titled, .closable, .miniaturizable, .resizable, .fullScreen])
         
         // register self method handler
         let registrar = flutterViewController.registrar(forPlugin: "RustDeskPlugin")

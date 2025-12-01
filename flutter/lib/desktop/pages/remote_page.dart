@@ -126,33 +126,55 @@ class _RemotePageState extends State<RemotePage>
       // Auto-resize window to match remote display resolution
       if (isDesktop && !isWeb) {
         try {
-          final displays = _ffi.ffiModel.pi.getCurDisplays();
-          if (displays.isNotEmpty) {
-            final display = displays[0];
-            final remoteWidth = display.width.toDouble();
-            final remoteHeight = display.height.toDouble();
+          // Ensure window manager is ready
+          await windowManager.ensureInitialized();
+          
+          // Use displaysRect to get the total size of the remote view (handles single and multi-monitor)
+          final rect = _ffi.ffiModel.displaysRect();
+          if (rect != null) {
+            debugPrint("Auto-resize: Remote view size: ${rect.width}x${rect.height}");
             
-            // Add some padding for window decorations and toolbar
-            const toolbarHeight = 60.0;
-            const windowPadding = 20.0;
+            final remoteWidth = rect.width;
+            final remoteHeight = rect.height;
             
-            final windowWidth = remoteWidth + windowPadding;
-            final windowHeight = remoteHeight + toolbarHeight + windowPadding;
+            // Estimate window decorations and UI overhead
+            // Tab bar is approx 40. Window title bar/borders vary by OS.
+            double widthOverhead = 0;
+            double heightOverhead = 0;
             
-            // Get primary screen size to ensure window doesn't exceed screen bounds
+            if (isWindows) {
+                widthOverhead = 16; // Borders (approx 8px per side)
+                heightOverhead = 40 + 40; // Title bar + Tab bar (approx)
+            } else if (isMacOS) {
+                heightOverhead = 28 + 40; // Title bar + Tab bar
+            } else if (isLinux) {
+                heightOverhead = 30 + 40; // Title bar + Tab bar
+            } else {
+                // Fallback
+                heightOverhead = 80;
+            }
+            
+            final targetWidth = remoteWidth + widthOverhead;
+            final targetHeight = remoteHeight + heightOverhead;
+            
+            // Get available screen size to ensure window doesn't exceed screen bounds
             final screenRects = await getScreenRectList();
             if (screenRects.isNotEmpty) {
-              final primaryScreen = screenRects[0];
-              final maxWidth = primaryScreen.width * 0.9;
-              final maxHeight = primaryScreen.height * 0.9;
+              // Use the primary screen or the first available one for bounds checking
+              final screen = screenRects[0];
+              // Leave some margin (5% width, 10% height)
+              final maxWidth = screen.width * 0.95;
+              final maxHeight = screen.height * 0.9;
               
-              // Calculate final size (don't exceed 90% of screen size)
-              final finalWidth = windowWidth > maxWidth ? maxWidth : windowWidth;
-              final finalHeight = windowHeight > maxHeight ? maxHeight : windowHeight;
+              final finalWidth = targetWidth > maxWidth ? maxWidth : targetWidth;
+              final finalHeight = targetHeight > maxHeight ? maxHeight : targetHeight;
               
+              debugPrint("Auto-resize: Resizing window to ${finalWidth}x${finalHeight}");
               await windowManager.setSize(Size(finalWidth, finalHeight));
               await windowManager.center();
             }
+          } else {
+             debugPrint("Auto-resize: displaysRect is null");
           }
         } catch (e) {
           debugPrint('Failed to auto-resize window: $e');
