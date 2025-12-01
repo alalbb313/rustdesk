@@ -131,9 +131,6 @@ class _RemotePageState extends State<RemotePage>
         if (!isSet) return;
         
         try {
-          // Ensure window manager is ready
-          await windowManager.ensureInitialized();
-          
           // Use displaysRect to get the total size of the remote view (handles single and multi-monitor)
           final rect = _ffi.ffiModel.displaysRect();
           if (rect != null) {
@@ -176,17 +173,37 @@ class _RemotePageState extends State<RemotePage>
               
               debugPrint("Auto-resize: Resizing window to ${finalWidth}x${finalHeight}");
               
-              // Get the window ID for this session
-              final windowId = kWindowId ?? stateGlobal.windowId;
-              if (windowId != null) {
-                final wc = WindowController.fromWindowId(windowId);
-                await wc.setSize(Size(finalWidth, finalHeight));
-                await wc.center();
-              } else {
-                // Fallback to windowManager for main window
-                await windowManager.setSize(Size(finalWidth, finalHeight));
-                await windowManager.center();
+              // Get the window controller for this session
+              final windowId = stateGlobal.windowId;
+              final wc = WindowController.fromWindowId(windowId);
+              
+              // Get current frame to preserve position, or center if first time
+              Rect newFrame;
+              try {
+                final currentFrame = await wc.getFrame();
+                // Keep current position, just change size
+                newFrame = Rect.fromLTWH(
+                  currentFrame.left,
+                  currentFrame.top,
+                  finalWidth,
+                  finalHeight
+                );
+              } catch (e) {
+                // If can't get current frame, center the window
+                debugPrint("Could not get current frame: $e, will center window");
+                final screenCenter = Offset(
+                  screen.left + (screen.width - finalWidth) / 2,
+                  screen.top + (screen.height - finalHeight) / 2
+                );
+                newFrame = Rect.fromLTWH(
+                  screenCenter.dx,
+                  screenCenter.dy,
+                  finalWidth,
+                  finalHeight
+                );
               }
+              
+              await wc.setFrame(newFrame);
             }
           } else {
              debugPrint("Auto-resize: displaysRect is null");
