@@ -2235,6 +2235,30 @@ impl LoginConfigHandler {
                 let mut quality = config.custom_image_quality[0];
                 if !allow_more && quality > 100 {
                     quality = 50;
+                }
+                quality
+            };
+            msg.custom_image_quality = quality << 8;
+            #[cfg(feature = "flutter")]
+            {
+                let custom_fps = self
+                    .options
+                    .get("custom-fps")
+                    .cloned()
+                    .unwrap_or_else(|| UserDefaultConfig::read("custom-fps"));
+                if !custom_fps.is_empty() {
+                    let custom_fps = custom_fps.parse().unwrap_or(30);
+                    // Removed the 30 FPS limit to allow user's custom FPS settings
+                    // Previously: if !allow_more && custom_fps > 30 { custom_fps = 30; }
+                    msg.custom_fps = custom_fps;
+                    *self.custom_fps.lock().unwrap() = Some(custom_fps as _);
+                }
+            }
+        }
+        let view_only = self.get_toggle_option("view-only");
+        if view_only {
+            msg.disable_keyboard = BoolOption::Yes.into();
+        }
         if view_only || self.get_toggle_option("show-remote-cursor") {
             msg.show_remote_cursor = BoolOption::Yes.into();
         }
