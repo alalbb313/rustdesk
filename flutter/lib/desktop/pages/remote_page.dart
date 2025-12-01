@@ -124,20 +124,25 @@ class _RemotePageState extends State<RemotePage>
           .updateStatus(bind.sessionGetIsRecording(sessionId: _ffi.sessionId));
     });
     
-    // Auto-resize window to match remote display resolution when peer info is set
+    // Auto-resize window to match remote display resolution when peer info is set or changes
     if (isDesktop && !isWeb) {
-      // Use once to listen to pi.isSet becoming true (only fires once)
-      once(_ffi.ffiModel.pi.isSet, (bool isSet) async {
-        if (!isSet) return;
-        
+      // Track the last rect to avoid unnecessary resizes
+      Rect? lastRect;
+      
+      // Use ever to listen to displays changes (resolution changes, etc.)
+      ever(_ffi.ffiModel.pi.displays, (_) async {
         // Add a small delay to ensure displays are fully populated
         await Future.delayed(Duration(milliseconds: 100));
         
         try {
           // Use displaysRect to get the total size of the remote view (handles single and multi-monitor)
           final rect = _ffi.ffiModel.displaysRect();
-          if (rect != null) {
-            debugPrint("Auto-resize: Remote view size: ${rect.width}x${rect.height}");
+          
+          // Only proceed if rect is valid and different from last time
+          if (rect != null && rect != lastRect) {
+            lastRect = rect;
+            
+            debugPrint("Auto-resize: Remote view size changed to: ${rect.width}x${rect.height}");
             
             final remoteWidth = rect.width;
             final remoteHeight = rect.height;
@@ -195,7 +200,7 @@ class _RemotePageState extends State<RemotePage>
               await wc.setFrame(newFrame);
               debugPrint("Auto-resize: Window resized and centered successfully");
             }
-          } else {
+          } else if (rect == null) {
              debugPrint("Auto-resize: displaysRect is null");
           }
         } catch (e) {
@@ -203,6 +208,7 @@ class _RemotePageState extends State<RemotePage>
         }
       });
     }
+
     _ffi.canvasModel.initializeEdgeScrollFallback(this);
     _ffi.start(
       widget.id,
