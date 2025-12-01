@@ -1243,7 +1243,7 @@ impl<T: InvokeUiSession> Remote<T> {
         for (display, thread) in self.video_threads.iter_mut() {
             let ctl = &mut thread.fps_control;
             let video_queue = thread.video_queue.read().unwrap();
-            let tolerable = std::cmp::min(min_decode_fps, video_queue.capacity() / 2);
+            let tolerable = std::cmp::min(min_decode_fps.unwrap_or(30), video_queue.capacity() / 2);
             if ctl.refresh_times < 20 // enough
                     && (video_queue.len() > tolerable
                             && (ctl.refresh_times == 0 || ctl.last_refresh_instant.map(|t|t.elapsed().as_secs() > 10).unwrap_or(false)))
