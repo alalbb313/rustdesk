@@ -46,7 +46,7 @@ use hbb_common::{
     anyhow::{anyhow, Context},
     bail,
     config::{
-        self, keys, use_ws, Config, LocalConfig, PeerConfig, PeerInfoSerde, Resolution,
+        self, keys, use_ws, Config, LocalConfig, PeerConfig, PeerInfoSerde, Resolution, UserDefaultConfig,
         CONNECT_TIMEOUT, READ_TIMEOUT, RELAY_PORT, RENDEZVOUS_PORT, RENDEZVOUS_SERVERS,
     },
     fs::JobType,
@@ -2235,23 +2235,6 @@ impl LoginConfigHandler {
                 let mut quality = config.custom_image_quality[0];
                 if !allow_more && quality > 100 {
                     quality = 50;
-                }
-                quality
-            };
-            msg.custom_image_quality = quality << 8;
-            #[cfg(feature = "flutter")]
-            if let Some(custom_fps) = self.options.get("custom-fps") {
-                let custom_fps = custom_fps.parse().unwrap_or(30);
-                // Removed the 30 FPS limit to allow user's custom FPS settings
-                // Previously: if !allow_more && custom_fps > 30 { custom_fps = 30; }
-                msg.custom_fps = custom_fps;
-                *self.custom_fps.lock().unwrap() = Some(custom_fps as _);
-            }
-        }
-        let view_only = self.get_toggle_option("view-only");
-        if view_only {
-            msg.disable_keyboard = BoolOption::Yes.into();
-        }
         if view_only || self.get_toggle_option("show-remote-cursor") {
             msg.show_remote_cursor = BoolOption::Yes.into();
         }

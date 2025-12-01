@@ -2010,7 +2010,7 @@ pub struct UserDefaultConfig {
 }
 
 impl UserDefaultConfig {
-    fn read(key: &str) -> String {
+    pub fn read(key: &str) -> String {
         let mut cfg = USER_DEFAULT_CONFIG.write().unwrap();
         // we do so, because default config may changed in another process, but we don't sync it
         // but no need to read every time, give a small interval to avoid too many redundant read waste

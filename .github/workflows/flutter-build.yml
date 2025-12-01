@@ -851,6 +851,10 @@ jobs:
           cp -R ./flutter/build/macos/Build/Products/Release/RustDesk.app dmg_contents_signed/
           cp ./res/setup_permissions.sh dmg_contents_signed/Setup_Permissions.command
           chmod +x dmg_contents_signed/Setup_Permissions.command
+          
+          # Sign the Setup_Permissions.command script
+          codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} dmg_contents_signed/Setup_Permissions.command -vvv
+          
           cat > dmg_contents_signed/README.txt << 'EOF'
           RustDesk Installation / RustDesk 安装
 
@@ -890,6 +894,10 @@ jobs:
           cp -R ./flutter/build/macos/Build/Products/Release/RustDesk.app dmg_contents_adhoc/
           cp ./res/setup_permissions.sh dmg_contents_adhoc/Setup_Permissions.command
           chmod +x dmg_contents_adhoc/Setup_Permissions.command
+          
+          # Ad-hoc sign the Setup_Permissions.command script
+          codesign --force --deep --sign - dmg_contents_adhoc/Setup_Permissions.command
+          
           cat > dmg_contents_adhoc/README.txt << 'EOF'
           RustDesk Installation / RustDesk 安装
 
