@@ -621,6 +621,7 @@
 					../../target/release,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				OTHER_LDFLAGS = (
 					"-sectcreate",
 					__CGPreLoginApp,
@@ -647,6 +648,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
