@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:flutter_hbb/utils/platform_channel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
@@ -153,8 +154,27 @@ class _RemotePageState extends State<RemotePage>
             double heightOverhead = 0;
             
             if (isWindows) {
-                widthOverhead = 16; // Borders (approx 8px per side)
-                heightOverhead = 32 + kDesktopRemoteTabBarHeight; // Title bar (approx 32) + Tab bar
+                // Special handling for Windows to set content size directly
+                final screenRects = await getScreenRectList();
+                if (screenRects.isNotEmpty) {
+                    final screen = screenRects[0];
+                    final contentWidth = remoteWidth;
+                    final contentHeight = remoteHeight + kDesktopRemoteTabBarHeight;
+                    
+                    double finalW = contentWidth;
+                    double finalH = contentHeight;
+                    
+                    // Simple safety clamp
+                    if (finalW > screen.width - 20) finalW = screen.width - 20;
+                    if (finalH > screen.height - 50) finalH = screen.height - 50;
+                    
+                    await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH);
+                    final wc = WindowController.fromWindowId(stateGlobal.windowId);
+                    await wc.center();
+                    debugPrint("Auto-resize: Window resized (content) to ${finalW}x${finalH} and centered");
+                }
+                // Skip the rest of the logic for Windows
+                return;
             } else if (isMacOS) {
                 heightOverhead = 28 + kDesktopRemoteTabBarHeight; // Title bar (approx 28) + Tab bar
             } else if (isLinux) {

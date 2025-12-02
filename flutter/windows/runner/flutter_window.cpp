@@ -19,6 +19,80 @@
 
 #include "win32_desktop.h"
 
+namespace {
+
+void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
+  auto channel = std::make_unique<flutter::MethodChannel<>>(
+      messenger, "org.rustdesk.rustdesk/host",
+      &flutter::StandardMethodCodec::GetInstance());
+
+  channel->SetMethodCallHandler(
+      [hwnd](const flutter::MethodCall<>& call, std::unique_ptr<flutter::MethodResult<>> result) {
+        if (call.method_name() == "bumpMouse") {
+          auto arguments = call.arguments();
+          int dx = 0, dy = 0;
+
+          if (std::holds_alternative<flutter::EncodableMap>(*arguments)) {
+            auto argsMap = std::get<flutter::EncodableMap>(*arguments);
+            auto dxIt = argsMap.find(flutter::EncodableValue("dx"));
+            auto dyIt = argsMap.find(flutter::EncodableValue("dy"));
+
+            if ((dxIt != argsMap.end()) && std::holds_alternative<int>(dxIt->second)) {
+              dx = std::get<int>(dxIt->second);
+            }
+            if ((dyIt != argsMap.end()) && std::holds_alternative<int>(dyIt->second)) {
+              dy = std::get<int>(dyIt->second);
+            }
+          } else if (std::holds_alternative<flutter::EncodableList>(*arguments)) {
+            auto argsList = std::get<flutter::EncodableList>(*arguments);
+
+            if ((argsList.size() >= 1) && std::holds_alternative<int>(argsList[0])) {
+              dx = std::get<int>(argsList[0]);
+            }
+            if ((argsList.size() >= 2) && std::holds_alternative<int>(argsList[1])) {
+              dy = std::get<int>(argsList[1]);
+            }
+          }
+
+          bool succeeded = Win32Desktop::BumpMouse(dx, dy);
+          result->Success(succeeded);
+        } else if (call.method_name() == "setWindowContentSize") {
+            auto arguments = call.arguments();
+            if (std::holds_alternative<flutter::EncodableMap>(*arguments)) {
+              auto argsMap = std::get<flutter::EncodableMap>(*arguments);
+              auto widthIt = argsMap.find(flutter::EncodableValue("width"));
+              auto heightIt = argsMap.find(flutter::EncodableValue("height"));
+              
+              if (widthIt != argsMap.end() && heightIt != argsMap.end() &&
+                  std::holds_alternative<double>(widthIt->second) &&
+                  std::holds_alternative<double>(heightIt->second)) {
+                
+                int width = static_cast<int>(std::get<double>(widthIt->second));
+                int height = static_cast<int>(std::get<double>(heightIt->second));
+                
+                LONG style = GetWindowLong(hwnd, GWL_STYLE);
+                LONG exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+                
+                RECT rect = {0, 0, width, height};
+                
+                if (AdjustWindowRectEx(&rect, style, FALSE, exStyle)) {
+                   int w = rect.right - rect.left;
+                   int h = rect.bottom - rect.top;
+                   SetWindowPos(hwnd, NULL, 0, 0, w, h, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+                   result->Success(nullptr);
+                   return;
+                }
+              }
+            }
+            result->Error("INVALID_ARGUMENTS", "Width and height are required");
+        } else {
+          result->NotImplemented();
+        }
+      });
+}
+
+} // namespace
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -41,46 +115,7 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
 
-  flutter::MethodChannel<> channel(
-    flutter_controller_->engine()->messenger(),
-    "org.rustdesk.rustdesk/host",
-    &flutter::StandardMethodCodec::GetInstance());
-
-  channel.SetMethodCallHandler(
-    [](const flutter::MethodCall<>& call, std::unique_ptr<flutter::MethodResult<>> result) {
-      if (call.method_name() == "bumpMouse") {
-        auto arguments = call.arguments();
-
-        int dx = 0, dy = 0;
-
-        if (std::holds_alternative<flutter::EncodableMap>(*arguments)) {
-          auto argsMap = std::get<flutter::EncodableMap>(*arguments);
-
-          auto dxIt = argsMap.find(flutter::EncodableValue("dx"));
-          auto dyIt = argsMap.find(flutter::EncodableValue("dy"));
-
-          if ((dxIt != argsMap.end()) && std::holds_alternative<int>(dxIt->second)) {
-            dx = std::get<int>(dxIt->second);
-          }
-          if ((dyIt != argsMap.end()) && std::holds_alternative<int>(dyIt->second)) {
-            dy = std::get<int>(dyIt->second);
-          }
-        } else if (std::holds_alternative<flutter::EncodableList>(*arguments)) {
-          auto argsList = std::get<flutter::EncodableList>(*arguments);
-
-          if ((argsList.size() >= 1) && std::holds_alternative<int>(argsList[0])) {
-            dx = std::get<int>(argsList[0]);
-          }
-          if ((argsList.size() >= 2) && std::holds_alternative<int>(argsList[1])) {
-            dy = std::get<int>(argsList[1]);
-          }
-        }
-
-        bool succeeded = Win32Desktop::BumpMouse(dx, dy);
-
-        result->Success(succeeded);
-      }
-    });
+  RegisterHostChannel(flutter_controller_->engine()->messenger(), GetHandle());
 
   DesktopMultiWindowSetWindowCreatedCallback([](void *controller) {
     auto *flutter_view_controller =
@@ -90,6 +125,8 @@ bool FlutterWindow::OnCreate() {
         registry->GetRegistrarForPlugin("TextureRgbaRendererPlugin"));
     FlutterGpuTextureRendererPluginCApiRegisterWithRegistrar(
         registry->GetRegistrarForPlugin("FlutterGpuTextureRendererPluginCApi"));
+    
+    RegisterHostChannel(registry->messenger(), flutter_view_controller->view()->GetNativeWindow());
   });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
   return true;

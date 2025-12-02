@@ -44,6 +44,16 @@ class RdPlatformChannel {
         .invokeMethod("setFullscreen", {"fullscreen": fullscreen});
   }
 
+  /// Set window content size (client area)
+  Future<void> setWindowContentSize(double width, double height) {
+    assert(isWindows);
+    if (kDebugMode) {
+      print("[Window ${kWindowId ?? 'Main'}] setWindowContentSize to ${width}x${height}");
+    }
+    return _hostMethodChannel.invokeMethod(
+        "setWindowContentSize", {"width": width, "height": height});
+  }
+
   /// Terminate .app manually.
   Future<void> terminate() {
     assert(isMacOS);
