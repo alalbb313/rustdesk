@@ -353,7 +353,7 @@ class _RemotePageState extends State<RemotePage>
   }
 
   Future<void> _autoResizeWindow() async {
-      if (!isWindows) return;
+      if (!isWindows || !mounted || stateGlobal.fullscreen.isTrue) return;
       
       final rect = _ffi.ffiModel.displaysRect();
       if (rect == null) return;
@@ -365,21 +365,28 @@ class _RemotePageState extends State<RemotePage>
           // Use dynamic tab bar height from stateGlobal
           // This automatically handles fullscreen (0) vs normal mode (28.0)
           final tabBarHeight = stateGlobal.tabBarHeight;
+          final dpr = MediaQuery.of(context).devicePixelRatio;
           
           final contentWidth = rect.width;
-          final contentHeight = rect.height + tabBarHeight;
+          // Convert logical tab bar height to physical pixels to match remote resolution
+          final contentHeight = rect.height + (tabBarHeight * dpr);
           
           double finalW = contentWidth;
           double finalH = contentHeight;
           
+          // Convert screen bounds to physical pixels for comparison
+          // Assuming screen rects are in logical pixels
+          final screenWidthPhysical = screen.width * dpr;
+          final screenHeightPhysical = screen.height * dpr;
+          
           // Clamp to screen size without margins - maximize screen usage
-          if (finalW > screen.width) finalW = screen.width;
-          if (finalH > screen.height) finalH = screen.height;
+          if (finalW > screenWidthPhysical) finalW = screenWidthPhysical;
+          if (finalH > screenHeightPhysical) finalH = screenHeightPhysical;
           
           await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH);
           final wc = WindowController.fromWindowId(stateGlobal.windowId);
           await wc.center();
-          debugPrint("Auto-resize: Window resized (content) to ${finalW}x${finalH} (remote: ${rect.width}x${rect.height}, tabBar: $tabBarHeight) and centered");
+          debugPrint("Auto-resize: Window resized (content) to ${finalW}x${finalH} (remote: ${rect.width}x${rect.height}, tabBar: $tabBarHeight, dpr: $dpr) and centered");
       }
   }
 
