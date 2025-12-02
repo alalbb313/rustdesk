@@ -283,11 +283,30 @@ class _RemotePageState extends State<RemotePage>
       // and let OS to handle events instead.
       _rawKeyFocusNode.unfocus();
     }
+    stateGlobal.isFocused.value = false;
+  }
+
+  @override
+  void onWindowRestore() {
+    super.onWindowRestore();
+    // On windows, we use `onWindowRestore` way to handle window restore from
+    // a minimized state.
+    if (isWindows) {
       _isWindowBlur = false;
     }
     if (!isLinux) {
       WakelockPlus.enable();
     }
+  }
+
+  @override
+  void onWindowFocus() {
+    super.onWindowFocus();
+    // See [onWindowBlur].
+    if (isWindows) {
+      _isWindowBlur = false;
+    }
+    stateGlobal.isFocused.value = true;
   }
 
   // When the window is unminimized, onWindowMaximize or onWindowRestore can be called when the old state was maximized or not.
