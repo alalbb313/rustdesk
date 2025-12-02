@@ -37,6 +37,13 @@ class RdPlatformChannel {
         .invokeMethod("setWindowTheme", {"themeName": theme.name});
   }
 
+  /// Set fullscreen mode
+  Future<void> setFullscreen(bool fullscreen) {
+    assert(isMacOS);
+    return _hostMethodChannel
+        .invokeMethod("setFullscreen", {"fullscreen": fullscreen});
+  }
+
   /// Terminate .app manually.
   Future<void> terminate() {
     assert(isMacOS);

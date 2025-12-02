@@ -19,6 +19,8 @@ import 'package:scroll_pos/scroll_pos.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import 'package:flutter_hbb/utils/platform_channel.dart';
+
 import '../../utils/multi_window_manager.dart';
 
 const double _kTabBarHeight = kDesktopRemoteTabBarHeight;
@@ -487,7 +489,7 @@ class _DesktopTabState extends State<DesktopTab>
       }
       // macOS specific workaround, the window is not hiding when in fullscreen.
       if (isMacOS && await windowManager.isFullScreen()) {
-        await windowManager.setFullScreen(false);
+        await RdPlatformChannel.instance.setFullscreen(false);
         await macOSWindowClose(
           () async => await windowManager.isFullScreen(),
           mainWindowClose,
@@ -504,7 +506,7 @@ class _DesktopTabState extends State<DesktopTab>
 
         if (await onWindowCloseButton?.call() ?? true) {
           if (await controller.isFullScreen()) {
-            await controller.setFullscreen(false);
+            await RdPlatformChannel.instance.setFullscreen(false);
             stateGlobal.setFullscreen(false, procWnd: false);
             await macOSWindowClose(
               () async => await controller.isFullScreen(),

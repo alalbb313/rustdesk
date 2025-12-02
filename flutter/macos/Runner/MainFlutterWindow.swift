@@ -84,6 +84,19 @@ class MainFlutterWindow: NSWindow {
                     self.setWindowInterfaceMode(window: window,themeName: themeName ?? "light")
                     result(nil)
                     break;
+                case "setFullscreen":
+                    let arg = call.arguments as! [String: Any]
+                    let fullscreen = arg["fullscreen"] as? Bool ?? false
+                    guard let window = registrar.view?.window else {
+                        result(nil)
+                        return
+                    }
+                    let isFullScreen = window.styleMask.contains(.fullScreen)
+                    if (fullscreen && !isFullScreen) || (!fullscreen && isFullScreen) {
+                        window.toggleFullScreen(nil)
+                    }
+                    result(nil)
+                    break;
                 case "terminate":
                     NSApplication.shared.terminate(self)
                     result(nil)
