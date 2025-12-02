@@ -154,26 +154,7 @@ class _RemotePageState extends State<RemotePage>
             double heightOverhead = 0;
             
             if (isWindows) {
-                // Special handling for Windows to set content size directly
-                final screenRects = await getScreenRectList();
-                if (screenRects.isNotEmpty) {
-                    final screen = screenRects[0];
-                    final contentWidth = remoteWidth;
-                    final contentHeight = remoteHeight + kDesktopRemoteTabBarHeight;
-                    
-                    double finalW = contentWidth;
-                    double finalH = contentHeight;
-                    
-                    // Simple safety clamp
-                    if (finalW > screen.width - 20) finalW = screen.width - 20;
-                    if (finalH > screen.height - 50) finalH = screen.height - 50;
-                    
-                    await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH);
-                    final wc = WindowController.fromWindowId(stateGlobal.windowId);
-                    await wc.center();
-                    debugPrint("Auto-resize: Window resized (content) to ${finalW}x${finalH} and centered");
-                }
-                // Skip the rest of the logic for Windows
+                await _autoResizeWindow();
                 return;
             } else if (isMacOS) {
                 heightOverhead = 28 + kDesktopRemoteTabBarHeight; // Title bar (approx 28) + Tab bar
@@ -261,6 +242,10 @@ class _RemotePageState extends State<RemotePage>
           sessionId: sessionId, arg: kOptionZoomCursor);
     });
     DesktopMultiWindow.addListener(this);
+    _ffi.canvasModel.addListener(_onCanvasModelChanged);
+    _lastViewStyle = _ffi.canvasModel.viewStyle.style;
+    _ffi.canvasModel.addListener(_onCanvasModelChanged);
+    _lastViewStyle = _ffi.canvasModel.viewStyle.style;
     // if (!_isCustomCursorInited) {
     //   customCursorController.registerNeedUpdateCursorCallback(
     //       (String? lastKey, String? currentKey) async {
@@ -292,25 +277,6 @@ class _RemotePageState extends State<RemotePage>
       // and let OS to handle events instead.
       _rawKeyFocusNode.unfocus();
     }
-    stateGlobal.isFocused.value = false;
-  }
-
-  @override
-  void onWindowFocus() {
-    super.onWindowFocus();
-    // See [onWindowBlur].
-    if (isWindows) {
-      _isWindowBlur = false;
-    }
-    stateGlobal.isFocused.value = true;
-  }
-
-  @override
-  void onWindowRestore() {
-    super.onWindowRestore();
-    // On windows, we use `onWindowRestore` way to handle window restore from
-    // a minimized state.
-    if (isWindows) {
       _isWindowBlur = false;
     }
     if (!isLinux) {
@@ -363,6 +329,8 @@ class _RemotePageState extends State<RemotePage>
       // ensure we leave this session, this is a double check
       _ffi.inputModel.enterOrLeave(false);
     }
+
+
     DesktopMultiWindow.removeListener(this);
     _ffi.dialogManager.hideMobileActionsOverlay();
     _ffi.imageModel.disposeImage();
@@ -952,6 +920,43 @@ class _ImagePaintState extends State<ImagePaint> {
     } else {
       return child;
     }
+  }
+
+  String? _lastViewStyle;
+
+  void _onCanvasModelChanged() {
+    if (_ffi.canvasModel.viewStyle.style != _lastViewStyle) {
+      _lastViewStyle = _ffi.canvasModel.viewStyle.style;
+      if (isWindows && _lastViewStyle == kRemoteViewStyleOriginal) {
+         _autoResizeWindow();
+      }
+    }
+  }
+
+  Future<void> _autoResizeWindow() async {
+      if (!isWindows) return;
+      
+      final rect = _ffi.ffiModel.displaysRect();
+      if (rect == null) return;
+      
+      final screenRects = await getScreenRectList();
+      if (screenRects.isNotEmpty) {
+          final screen = screenRects[0];
+          final contentWidth = rect.width;
+          final contentHeight = rect.height + kDesktopRemoteTabBarHeight;
+          
+          double finalW = contentWidth;
+          double finalH = contentHeight;
+          
+          // Simple safety clamp
+          if (finalW > screen.width - 20) finalW = screen.width - 20;
+          if (finalH > screen.height - 50) finalH = screen.height - 50;
+          
+          await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH);
+          final wc = WindowController.fromWindowId(stateGlobal.windowId);
+          await wc.center();
+          debugPrint("Auto-resize: Window resized (content) to ${finalW}x${finalH} and centered");
+      }
   }
 }
 
