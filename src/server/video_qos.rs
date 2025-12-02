@@ -245,10 +245,12 @@ impl VideoQoS {
 
     pub fn user_network_delay(&mut self, id: i32, delay: u32) {
         let highest_fps = self.highest_fps();
-        let target_ratio = self.latest_quality().ratio();
+        let quality = self.latest_quality();
+        let target_ratio = quality.ratio();
+        let has_custom_fps = self.users.get(&id).map(|u| u.custom_fps.is_some()).unwrap_or(false);
 
-        // If custom quality is used, force use the set FPS and skip adaptive logic
-        if self.latest_quality().is_custom() {
+        // If custom quality or custom fps is used, force use the set FPS and skip adaptive logic
+        if quality.is_custom() || has_custom_fps {
             if let Some(user) = self.users.get_mut(&id) {
                 user.delay.add_delay(delay);
                 user.delay.fps = Some(highest_fps);
