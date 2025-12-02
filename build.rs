@@ -89,6 +89,12 @@ fn main() {
         #[cfg(target_os = "macos")]
         build_mac();
         println!("cargo:rustc-link-lib=framework=ApplicationServices");
+        // Link frameworks required for hardware codec support (H264/H265)
+        println!("cargo:rustc-link-lib=framework=CoreFoundation");
+        println!("cargo:rustc-link-lib=framework=CoreVideo");
+        println!("cargo:rustc-link-lib=framework=CoreMedia");
+        println!("cargo:rustc-link-lib=framework=VideoToolbox");
+        println!("cargo:rustc-link-lib=framework=AVFoundation");
     }
     println!("cargo:rerun-if-changed=build.rs");
 }
