@@ -531,6 +531,11 @@ impl VideoQoS {
             self.fps = highest_fps;
             return;
         }
+        // If custom fps is used, force use the set FPS
+        if self.users.values().any(|u| u.custom_fps.is_some()) {
+            self.fps = highest_fps;
+            return;
+        }
         // Get minimum fps from all users
         let mut fps = self
             .users

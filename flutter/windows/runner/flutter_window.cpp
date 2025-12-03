@@ -62,6 +62,8 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
               auto argsMap = std::get<flutter::EncodableMap>(*arguments);
               auto widthIt = argsMap.find(flutter::EncodableValue("width"));
               auto heightIt = argsMap.find(flutter::EncodableValue("height"));
+              auto leftIt = argsMap.find(flutter::EncodableValue("left"));
+              auto topIt = argsMap.find(flutter::EncodableValue("top"));
               
               if (widthIt != argsMap.end() && heightIt != argsMap.end() &&
                   std::holds_alternative<double>(widthIt->second) &&
@@ -78,7 +80,20 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                 if (AdjustWindowRectEx(&rect, style, FALSE, exStyle)) {
                    int w = rect.right - rect.left;
                    int h = rect.bottom - rect.top;
-                   SetWindowPos(hwnd, NULL, 0, 0, w, h, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+                   UINT flags = SWP_NOZORDER | SWP_NOACTIVATE;
+                   int x = 0;
+                   int y = 0;
+
+                   if (leftIt != argsMap.end() && topIt != argsMap.end() &&
+                       std::holds_alternative<double>(leftIt->second) &&
+                       std::holds_alternative<double>(topIt->second)) {
+                       x = static_cast<int>(std::get<double>(leftIt->second));
+                       y = static_cast<int>(std::get<double>(topIt->second));
+                   } else {
+                       flags |= SWP_NOMOVE;
+                   }
+
+                   SetWindowPos(hwnd, NULL, x, y, w, h, flags);
                    result->Success(nullptr);
                    return;
                 }

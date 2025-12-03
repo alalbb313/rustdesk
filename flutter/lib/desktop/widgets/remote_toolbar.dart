@@ -741,6 +741,7 @@ class ScreenAdjustor {
   final FFI ffi;
   final VoidCallback cbExitFullscreen;
   window_size.Screen? _screen;
+  static const platform = MethodChannel('org.rustdesk.rustdesk/host');
 
   ScreenAdjustor({
     required this.id,
@@ -795,6 +796,30 @@ class ScreenAdjustor {
           magicHeight;
       double left = wndRect.left + (wndRect.width - width) / 2;
       double top = wndRect.top + (wndRect.height - height) / 2;
+
+      if (isWindows) {
+        final canvasModel = ffi.canvasModel;
+        double contentWidth = (canvasModel.getDisplayWidth() * canvasModel.scale +
+                CanvasModel.leftToEdge +
+                CanvasModel.rightToEdge) *
+            scale;
+        double contentHeight =
+            (canvasModel.getDisplayHeight() * canvasModel.scale +
+                    CanvasModel.topToEdge +
+                    CanvasModel.bottomToEdge) *
+                scale;
+        try {
+          await platform.invokeMethod('setWindowContentSize', {
+            'width': contentWidth,
+            'height': contentHeight,
+            'left': left,
+            'top': top,
+          });
+          return;
+        } catch (e) {
+          debugPrint("Failed to setWindowContentSize: $e");
+        }
+      }
 
       Rect frameRect = _screen!.frame;
       if (!isFullscreen) {

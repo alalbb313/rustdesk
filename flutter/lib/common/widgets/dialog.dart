@@ -1837,21 +1837,6 @@ customImageQualityDialog(SessionID sessionId, String id, FFI ffi) async {
   bool qualitySet = false;
   bool fpsSet = false;
 
-  bool? direct;
-  try {
-    direct =
-        ConnectionTypeState.find(id).direct.value == ConnectionType.strDirect;
-  } catch (_) {}
-  bool hideFps = (await bind.mainIsUsingPublicServer() && direct != true) ||
-      versionCmp(ffi.ffiModel.pi.version, '1.2.0') < 0;
-  bool hideMoreQuality =
-      (await bind.mainIsUsingPublicServer() && direct != true) ||
-          versionCmp(ffi.ffiModel.pi.version, '1.2.2') < 0;
-
-  setCustomValues({double? quality, double? fps}) async {
-    debugPrint("setCustomValues quality:$quality, fps:$fps");
-    if (quality != null) {
-      qualitySet = true;
       await bind.sessionSetCustomImageQuality(
           sessionId: sessionId, value: quality.toInt());
     }
