@@ -1837,6 +1837,13 @@ customImageQualityDialog(SessionID sessionId, String id, FFI ffi) async {
   bool qualitySet = false;
   bool fpsSet = false;
 
+  bool hideFps = versionCmp(ffi.ffiModel.pi.version, '1.2.0') < 0;
+  bool hideMoreQuality = versionCmp(ffi.ffiModel.pi.version, '1.2.0') < 0;
+
+  setCustomValues({double? quality, double? fps}) async {
+    debugPrint("setCustomValues quality:$quality, fps:$fps");
+    if (quality != null) {
+      qualitySet = true;
       await bind.sessionSetCustomImageQuality(
           sessionId: sessionId, value: quality.toInt());
     }
