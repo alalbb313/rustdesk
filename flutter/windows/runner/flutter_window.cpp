@@ -69,27 +69,40 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                   std::holds_alternative<double>(widthIt->second) &&
                   std::holds_alternative<double>(heightIt->second)) {
                 
-                int width = static_cast<int>(std::get<double>(widthIt->second));
-                int height = static_cast<int>(std::get<double>(heightIt->second));
+                // Get logical pixel dimensions from Flutter
+                double logicalWidth = std::get<double>(widthIt->second);
+                double logicalHeight = std::get<double>(heightIt->second);
                 
+                // Get window DPI
+                HMODULE user32 = GetModuleHandleA("user32.dll");
+                using GetDpiForWindowFunc = UINT(WINAPI*)(HWND);
+                auto getDpiForWindow = reinterpret_cast<GetDpiForWindowFunc>(
+                    GetProcAddress(user32, "GetDpiForWindow"));
+                
+                UINT dpi = 96; // Default DPI
+                if (getDpiForWindow) {
+                    dpi = getDpiForWindow(hwnd);
+                }
+                
+                // Convert logical pixels to physical pixels
+                double scaleFactor = dpi / 96.0;
+                int physicalWidth = static_cast<int>(logicalWidth * scaleFactor);
+                int physicalHeight = static_cast<int>(logicalHeight * scaleFactor);
+                
+                // Get window style
                 LONG style = GetWindowLong(hwnd, GWL_STYLE);
                 LONG exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
                 
-                RECT rect = {0, 0, width, height};
+                // Calculate window rect including borders
+                RECT rect = {0, 0, physicalWidth, physicalHeight};
                 
                 // Try to use AdjustWindowRectExForDpi if available (Windows 10 1607+)
-                HMODULE user32 = GetModuleHandleA("user32.dll");
                 using AdjustWindowRectExForDpiFunc = BOOL(WINAPI*)(LPRECT, DWORD, BOOL, DWORD, UINT);
-                using GetDpiForWindowFunc = UINT(WINAPI*)(HWND);
-                
                 auto adjustWindowRectExForDpi = reinterpret_cast<AdjustWindowRectExForDpiFunc>(
                     GetProcAddress(user32, "AdjustWindowRectExForDpi"));
-                auto getDpiForWindow = reinterpret_cast<GetDpiForWindowFunc>(
-                    GetProcAddress(user32, "GetDpiForWindow"));
 
                 BOOL adjusted = FALSE;
-                if (adjustWindowRectExForDpi && getDpiForWindow) {
-                    UINT dpi = getDpiForWindow(hwnd);
+                if (adjustWindowRectExForDpi) {
                     adjusted = adjustWindowRectExForDpi(&rect, style, FALSE, exStyle, dpi);
                 } else {
                     adjusted = AdjustWindowRectEx(&rect, style, FALSE, exStyle);
@@ -98,31 +111,20 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                 if (adjusted) {
                    int w = rect.right - rect.left;
                    int h = rect.bottom - rect.top;
-                   
-                   // Get current window position to calculate center
-                   RECT currentRect;
-                   GetWindowRect(hwnd, &currentRect);
-                   int currentCenterX = currentRect.left + (currentRect.right - currentRect.left) / 2;
-                   int currentCenterY = currentRect.top + (currentRect.bottom - currentRect.top) / 2;
-                   
-                   int x = currentCenterX - w / 2;
-                   int y = currentCenterY - h / 2;
+                   UINT flags = SWP_NOZORDER | SWP_NOACTIVATE;
+                   int x = 0;
+                   int y = 0;
 
-                   // Ensure window title bar is visible (within work area)
-                   HMONITOR hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-                   MONITORINFO monitorInfo = { sizeof(MONITORINFO) };
-                   if (GetMonitorInfo(hMonitor, &monitorInfo)) {
-                       if (y < monitorInfo.rcWork.top) {
-                           y = monitorInfo.rcWork.top;
-                       }
-                       if (x < monitorInfo.rcWork.left) {
-                           x = monitorInfo.rcWork.left;
-                       }
-                   } else if (y < 0) {
-                       y = 0;
+                   if (leftIt != argsMap.end() && topIt != argsMap.end() &&
+                       std::holds_alternative<double>(leftIt->second) &&
+                       std::holds_alternative<double>(topIt->second)) {
+                       x = static_cast<int>(std::get<double>(leftIt->second));
+                       y = static_cast<int>(std::get<double>(topIt->second));
+                   } else {
+                       flags |= SWP_NOMOVE;
                    }
 
-                   SetWindowPos(hwnd, NULL, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+                   SetWindowPos(hwnd, NULL, x, y, w, h, flags);
                    result->Success(nullptr);
                    return;
                 }

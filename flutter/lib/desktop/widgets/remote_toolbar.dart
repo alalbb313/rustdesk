@@ -799,15 +799,13 @@ class ScreenAdjustor {
 
       if (isWindows) {
         final canvasModel = ffi.canvasModel;
-        double contentWidth = (canvasModel.getDisplayWidth() * canvasModel.scale +
+        // Pass logical pixels to C++ layer, it will handle DPI scaling
+        double contentWidth = canvasModel.getDisplayWidth() * canvasModel.scale +
                 CanvasModel.leftToEdge +
-                CanvasModel.rightToEdge) *
-            scale;
-        double contentHeight =
-            (canvasModel.getDisplayHeight() * canvasModel.scale +
+                CanvasModel.rightToEdge;
+        double contentHeight = canvasModel.getDisplayHeight() * canvasModel.scale +
                     CanvasModel.topToEdge +
-                    CanvasModel.bottomToEdge) *
-                scale;
+                    CanvasModel.bottomToEdge;
         try {
           await platform.invokeMethod('setWindowContentSize', {
             'width': contentWidth,
@@ -815,9 +813,12 @@ class ScreenAdjustor {
             'left': left,
             'top': top,
           });
+          // Update window state after successful resize
+          stateGlobal.setMaximized(false);
           return;
         } catch (e) {
           debugPrint("Failed to setWindowContentSize: $e");
+          // Fall through to use the old method
         }
       }
 
