@@ -98,20 +98,31 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                 if (adjusted) {
                    int w = rect.right - rect.left;
                    int h = rect.bottom - rect.top;
-                   UINT flags = SWP_NOZORDER | SWP_NOACTIVATE;
-                   int x = 0;
-                   int y = 0;
+                   
+                   // Get current window position to calculate center
+                   RECT currentRect;
+                   GetWindowRect(hwnd, &currentRect);
+                   int currentCenterX = currentRect.left + (currentRect.right - currentRect.left) / 2;
+                   int currentCenterY = currentRect.top + (currentRect.bottom - currentRect.top) / 2;
+                   
+                   int x = currentCenterX - w / 2;
+                   int y = currentCenterY - h / 2;
 
-                   if (leftIt != argsMap.end() && topIt != argsMap.end() &&
-                       std::holds_alternative<double>(leftIt->second) &&
-                       std::holds_alternative<double>(topIt->second)) {
-                       x = static_cast<int>(std::get<double>(leftIt->second));
-                       y = static_cast<int>(std::get<double>(topIt->second));
-                   } else {
-                       flags |= SWP_NOMOVE;
+                   // Ensure window title bar is visible (within work area)
+                   HMONITOR hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+                   MONITORINFO monitorInfo = { sizeof(MONITORINFO) };
+                   if (GetMonitorInfo(hMonitor, &monitorInfo)) {
+                       if (y < monitorInfo.rcWork.top) {
+                           y = monitorInfo.rcWork.top;
+                       }
+                       if (x < monitorInfo.rcWork.left) {
+                           x = monitorInfo.rcWork.left;
+                       }
+                   } else if (y < 0) {
+                       y = 0;
                    }
 
-                   SetWindowPos(hwnd, NULL, x, y, w, h, flags);
+                   SetWindowPos(hwnd, NULL, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
                    result->Success(nullptr);
                    return;
                 }
