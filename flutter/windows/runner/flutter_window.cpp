@@ -77,7 +77,25 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                 
                 RECT rect = {0, 0, width, height};
                 
-                if (AdjustWindowRectEx(&rect, style, FALSE, exStyle)) {
+                // Try to use AdjustWindowRectExForDpi if available (Windows 10 1607+)
+                HMODULE user32 = GetModuleHandleA("user32.dll");
+                using AdjustWindowRectExForDpiFunc = BOOL(WINAPI*)(LPRECT, DWORD, BOOL, DWORD, UINT);
+                using GetDpiForWindowFunc = UINT(WINAPI*)(HWND);
+                
+                auto adjustWindowRectExForDpi = reinterpret_cast<AdjustWindowRectExForDpiFunc>(
+                    GetProcAddress(user32, "AdjustWindowRectExForDpi"));
+                auto getDpiForWindow = reinterpret_cast<GetDpiForWindowFunc>(
+                    GetProcAddress(user32, "GetDpiForWindow"));
+
+                BOOL adjusted = FALSE;
+                if (adjustWindowRectExForDpi && getDpiForWindow) {
+                    UINT dpi = getDpiForWindow(hwnd);
+                    adjusted = adjustWindowRectExForDpi(&rect, style, FALSE, exStyle, dpi);
+                } else {
+                    adjusted = AdjustWindowRectEx(&rect, style, FALSE, exStyle);
+                }
+
+                if (adjusted) {
                    int w = rect.right - rect.left;
                    int h = rect.bottom - rect.top;
                    UINT flags = SWP_NOZORDER | SWP_NOACTIVATE;
