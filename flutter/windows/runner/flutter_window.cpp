@@ -118,13 +118,34 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                    int x = 0;
                    int y = 0;
 
-                   if (leftIt != argsMap.end() && topIt != argsMap.end() &&
-                       std::holds_alternative<double>(leftIt->second) &&
-                       std::holds_alternative<double>(topIt->second)) {
-                       x = static_cast<int>(std::get<double>(leftIt->second));
-                       y = static_cast<int>(std::get<double>(topIt->second));
+                   bool center = false;
+                   auto centerIt = argsMap.find(flutter::EncodableValue("center"));
+                   if (centerIt != argsMap.end() && std::holds_alternative<bool>(centerIt->second)) {
+                       center = std::get<bool>(centerIt->second);
+                   }
+
+                   if (center) {
+                       RECT currentRect;
+                       if (GetWindowRect(hwnd, &currentRect)) {
+                           int centerX = currentRect.left + (currentRect.right - currentRect.left) / 2;
+                           int centerY = currentRect.top + (currentRect.bottom - currentRect.top) / 2;
+                           x = centerX - w / 2;
+                           y = centerY - h / 2;
+                           
+                           // Ensure top is not off-screen (simple check against 0)
+                           if (y < 0) y = 0;
+                       } else {
+                           flags |= SWP_NOMOVE;
+                       }
                    } else {
-                       flags |= SWP_NOMOVE;
+                       if (leftIt != argsMap.end() && topIt != argsMap.end() &&
+                           std::holds_alternative<double>(leftIt->second) &&
+                           std::holds_alternative<double>(topIt->second)) {
+                           x = static_cast<int>(std::get<double>(leftIt->second));
+                           y = static_cast<int>(std::get<double>(topIt->second));
+                       } else {
+                           flags |= SWP_NOMOVE;
+                       }
                    }
 
                    SetWindowPos(hwnd, NULL, x, y, w, h, flags);
