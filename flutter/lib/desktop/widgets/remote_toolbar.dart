@@ -797,6 +797,23 @@ class ScreenAdjustor {
       double left = wndRect.left + (wndRect.width - width) / 2;
       double top = wndRect.top + (wndRect.height - height) / 2;
 
+      Rect frameRect = _screen!.frame;
+      if (!isFullscreen) {
+        frameRect = _screen!.visibleFrame;
+      }
+      if (left < frameRect.left) {
+        left = frameRect.left;
+      }
+      if (top < frameRect.top) {
+        top = frameRect.top;
+      }
+      if ((left + width) > frameRect.right) {
+        left = frameRect.right - width;
+      }
+      if ((top + height) > frameRect.bottom) {
+        top = frameRect.bottom - height;
+      }
+
       if (isWindows) {
         final canvasModel = ffi.canvasModel;
         // Pass logical pixels to C++ layer, it will handle DPI scaling
@@ -822,22 +839,6 @@ class ScreenAdjustor {
         }
       }
 
-      Rect frameRect = _screen!.frame;
-      if (!isFullscreen) {
-        frameRect = _screen!.visibleFrame;
-      }
-      if (left < frameRect.left) {
-        left = frameRect.left;
-      }
-      if (top < frameRect.top) {
-        top = frameRect.top;
-      }
-      if ((left + width) > frameRect.right) {
-        left = frameRect.right - width;
-      }
-      if ((top + height) > frameRect.bottom) {
-        top = frameRect.bottom - height;
-      }
       await WindowController.fromWindowId(windowId)
           .setFrame(Rect.fromLTWH(left, top, width, height));
       stateGlobal.setMaximized(false);

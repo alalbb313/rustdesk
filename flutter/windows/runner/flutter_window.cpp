@@ -82,6 +82,9 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                 UINT dpi = 96; // Default DPI
                 if (getDpiForWindow) {
                     dpi = getDpiForWindow(hwnd);
+                    if (dpi == 0) {
+                        dpi = 96;
+                    }
                 }
                 
                 // Convert logical pixels to physical pixels
