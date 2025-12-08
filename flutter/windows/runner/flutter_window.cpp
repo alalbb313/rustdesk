@@ -96,6 +96,9 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                 LONG style = GetWindowLong(hwnd, GWL_STYLE);
                 LONG exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
                 
+                // Ensure we calculate the rect for a normal (restored) window, not maximized
+                style &= ~WS_MAXIMIZE;
+
                 // Calculate window rect including borders
                 RECT rect = {0, 0, physicalWidth, physicalHeight};
                 
@@ -146,6 +149,10 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                        } else {
                            flags |= SWP_NOMOVE;
                        }
+                   }
+
+                   if (IsZoomed(hwnd)) {
+                       ShowWindow(hwnd, SW_RESTORE);
                    }
 
                    SetWindowPos(hwnd, NULL, x, y, w, h, flags);
