@@ -367,25 +367,22 @@ class _RemotePageState extends State<RemotePage>
           final tabBarHeight = stateGlobal.tabBarHeight;
           final dpr = MediaQuery.of(context).devicePixelRatio;
           
-          final contentWidth = rect.width;
-          // Convert logical tab bar height to physical pixels to match remote resolution
-          final contentHeight = rect.height + (tabBarHeight * dpr);
+          // Convert remote physical pixels to local logical pixels
+          // rect.width/height are physical pixels of the remote screen video
+          final logicalRemoteWidth = rect.width / dpr;
+          final logicalRemoteHeight = rect.height / dpr;
           
-          double finalW = contentWidth;
-          double finalH = contentHeight;
+          double finalW = logicalRemoteWidth;
+          double finalH = logicalRemoteHeight + tabBarHeight;
           
-          // Convert screen bounds to physical pixels for comparison
-          // Assuming screen rects are in logical pixels
-          final screenWidthPhysical = screen.width * dpr;
-          final screenHeightPhysical = screen.height * dpr;
+          // Clamp to screen size (logical)
+          // screen.width/height are logical pixels
+          if (finalW > screen.width) finalW = screen.width;
+          if (finalH > screen.height) finalH = screen.height;
           
-          // Clamp to screen size without margins - maximize screen usage
-          if (finalW > screenWidthPhysical) finalW = screenWidthPhysical;
-          if (finalH > screenHeightPhysical) finalH = screenHeightPhysical;
+          // Pass logical pixels to C++ and request centering
+          await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH, center: true);
           
-          await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH);
-          final wc = WindowController.fromWindowId(stateGlobal.windowId);
-          await wc.center();
           debugPrint("Auto-resize: Window resized (content) to ${finalW}x${finalH} (remote: ${rect.width}x${rect.height}, tabBar: $tabBarHeight, dpr: $dpr) and centered");
       }
   }

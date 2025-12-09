@@ -816,19 +816,20 @@ class ScreenAdjustor {
 
       if (isWindows) {
         final canvasModel = ffi.canvasModel;
+        final dpr = MediaQuery.of(context).devicePixelRatio;
         // Pass logical pixels to C++ layer, it will handle DPI scaling
-        double contentWidth = canvasModel.getDisplayWidth() * canvasModel.scale +
+        // Convert physical image size to logical pixels
+        double contentWidth = (canvasModel.getDisplayWidth() / dpr) * canvasModel.scale +
                 CanvasModel.leftToEdge +
                 CanvasModel.rightToEdge;
-        double contentHeight = canvasModel.getDisplayHeight() * canvasModel.scale +
+        double contentHeight = (canvasModel.getDisplayHeight() / dpr) * canvasModel.scale +
                     CanvasModel.topToEdge +
                     CanvasModel.bottomToEdge;
         try {
           await platform.invokeMethod('setWindowContentSize', {
             'width': contentWidth,
             'height': contentHeight,
-            'left': left,
-            'top': top,
+            'center': true,
           });
           // Update window state after successful resize
           stateGlobal.setMaximized(false);
