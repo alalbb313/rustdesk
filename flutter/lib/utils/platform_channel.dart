@@ -26,6 +26,16 @@ class RdPlatformChannel {
     return result ?? false;
   }
 
+  /// Set window content size (client area)
+  Future<void> setWindowContentSize(double width, double height, {bool center = false, bool physical = false}) {
+    assert(isWindows);
+    if (kDebugMode) {
+      print("[Window ${kWindowId ?? 'Main'}] setWindowContentSize to ${width}x${height} center=$center physical=$physical");
+    }
+    return _hostMethodChannel.invokeMethod(
+        "setWindowContentSize", {"width": width, "height": height, "center": center, "physical": physical});
+  }
+
   /// Change the theme of the system window
   Future<void> changeSystemWindowTheme(SystemWindowTheme theme) {
     assert(isMacOS);
@@ -35,23 +45,6 @@ class RdPlatformChannel {
     }
     return _hostMethodChannel
         .invokeMethod("setWindowTheme", {"themeName": theme.name});
-  }
-
-  /// Set fullscreen mode
-  Future<void> setFullscreen(bool fullscreen) {
-    assert(isMacOS);
-    return _hostMethodChannel
-        .invokeMethod("setFullscreen", {"fullscreen": fullscreen});
-  }
-
-  /// Set window content size (client area)
-  Future<void> setWindowContentSize(double width, double height, {bool center = false, bool physical = false}) {
-    assert(isWindows);
-    if (kDebugMode) {
-      print("[Window ${kWindowId ?? 'Main'}] setWindowContentSize to ${width}x${height} center=$center physical=$physical");
-    }
-    return _hostMethodChannel.invokeMethod(
-        "setWindowContentSize", {"width": width, "height": height, "center": center, "physical": physical});
   }
 
   /// Terminate .app manually.

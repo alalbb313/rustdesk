@@ -27,6 +27,7 @@ import './popup_menu.dart';
 import './kb_layout_type_chooser.dart';
 import 'package:flutter_hbb/utils/scale.dart';
 import 'package:flutter_hbb/common/widgets/custom_scale_base.dart';
+import '../../utils/platform_channel.dart';
 
 class ToolbarState {
   late RxBool _pin;
@@ -741,7 +742,6 @@ class ScreenAdjustor {
   final FFI ffi;
   final VoidCallback cbExitFullscreen;
   window_size.Screen? _screen;
-  static const platform = MethodChannel('org.rustdesk.rustdesk/host');
 
   ScreenAdjustor({
     required this.id,
@@ -783,6 +783,31 @@ class ScreenAdjustor {
           wndRect.right - wndRect.left - mediaSize.width * scale;
       double magicHeight =
           wndRect.bottom - wndRect.top - mediaSize.height * scale;
+      if (isWindows) {
+        final canvasModel = ffi.canvasModel;
+        final dpr = MediaQuery.of(context).devicePixelRatio;
+        
+        // Pass physical pixels to C++ layer to avoid scaling errors
+        // canvasModel.getDisplayWidth() is physical
+        double contentWidth = canvasModel.getDisplayWidth() * canvasModel.scale +
+                (CanvasModel.leftToEdge + CanvasModel.rightToEdge) * dpr;
+        double contentHeight = canvasModel.getDisplayHeight() * canvasModel.scale +
+                    (CanvasModel.topToEdge + CanvasModel.bottomToEdge) * dpr;
+        try {
+          await RdPlatformChannel.instance.setWindowContentSize(
+            contentWidth,
+            contentHeight,
+            center: true,
+            physical: true,
+          );
+          // Update window state after successful resize
+          stateGlobal.setMaximized(false);
+          return;
+        } catch (e) {
+          debugPrint("Failed to setWindowContentSize: $e");
+          // Fall through to use the old method
+        }
+      }
       final canvasModel = ffi.canvasModel;
       final width = (canvasModel.getDisplayWidth() * canvasModel.scale +
                   CanvasModel.leftToEdge +
@@ -813,32 +838,6 @@ class ScreenAdjustor {
       if ((top + height) > frameRect.bottom) {
         top = frameRect.bottom - height;
       }
-
-      if (isWindows) {
-        final canvasModel = ffi.canvasModel;
-        final dpr = MediaQuery.of(context).devicePixelRatio;
-        // Pass physical pixels to C++ layer to avoid scaling errors
-        // canvasModel.getDisplayWidth() is physical
-        double contentWidth = canvasModel.getDisplayWidth() * canvasModel.scale +
-                (CanvasModel.leftToEdge + CanvasModel.rightToEdge) * dpr;
-        double contentHeight = canvasModel.getDisplayHeight() * canvasModel.scale +
-                    (CanvasModel.topToEdge + CanvasModel.bottomToEdge) * dpr;
-        try {
-          await platform.invokeMethod('setWindowContentSize', {
-            'width': contentWidth,
-            'height': contentHeight,
-            'center': true,
-            'physical': true,
-          });
-          // Update window state after successful resize
-          stateGlobal.setMaximized(false);
-          return;
-        } catch (e) {
-          debugPrint("Failed to setWindowContentSize: $e");
-          // Fall through to use the old method
-        }
-      }
-
       await WindowController.fromWindowId(windowId)
           .setFrame(Rect.fromLTWH(left, top, width, height));
       stateGlobal.setMaximized(false);

@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:flutter_hbb/utils/platform_channel.dart';
+import 'package:window_size/window_size.dart' as window_size;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
@@ -24,9 +23,11 @@ import '../../utils/image.dart';
 import '../widgets/remote_toolbar.dart';
 import '../widgets/kb_layout_type_chooser.dart';
 import '../widgets/tabbar_widget.dart';
+import '../../utils/multi_window_manager.dart';
 
 import 'package:flutter_hbb/native/custom_cursor.dart'
     if (dart.library.html) 'package:flutter_hbb/web/custom_cursor.dart';
+import '../../utils/platform_channel.dart';
 
 final SimpleWrapper<bool> _firstEnterImage = SimpleWrapper(false);
 
@@ -83,7 +84,6 @@ class _RemotePageState extends State<RemotePage>
   String keyboardMode = "legacy";
   bool _isWindowBlur = false;
   final _cursorOverImage = false.obs;
-  String? _lastViewStyle;
   late RxBool _showRemoteCursor;
   late RxBool _zoomCursor;
   late RxBool _remoteCursorMoved;
@@ -118,106 +118,13 @@ class _RemotePageState extends State<RemotePage>
     super.initState();
     _ffi = FFI(widget.sessionId);
     Get.put<FFI>(_ffi, tag: widget.id);
-    _ffi.imageModel.addCallbackOnFirstImage((String peerId) async {
+    _ffi.imageModel.addCallbackOnFirstImage((String peerId) {
       _ffi.canvasModel.activateLocalCursor();
       showKBLayoutTypeChooserIfNeeded(
           _ffi.ffiModel.pi.platform, _ffi.dialogManager);
       _ffi.recordingModel
           .updateStatus(bind.sessionGetIsRecording(sessionId: _ffi.sessionId));
     });
-    
-    // Auto-resize window to match remote display resolution when peer info is set or changes
-    if (isDesktop && !isWeb) {
-      // Track the last rect to avoid unnecessary resizes
-      Rect? lastRect;
-      
-      // Use ever to listen to displays changes (resolution changes, etc.)
-      ever(_ffi.ffiModel.pi.displays, (_) async {
-        // Add a small delay to ensure displays are fully populated
-        await Future.delayed(Duration(milliseconds: 100));
-        
-        try {
-          // Use displaysRect to get the total size of the remote view (handles single and multi-monitor)
-          final rect = _ffi.ffiModel.displaysRect();
-          
-          // Only proceed if rect is valid and different from last time
-          if (rect != null && rect != lastRect) {
-            lastRect = rect;
-            
-            debugPrint("Auto-resize: Remote view size changed to: ${rect.width}x${rect.height}");
-            
-            final remoteWidth = rect.width;
-            final remoteHeight = rect.height;
-            
-            // Estimate window decorations and UI overhead
-            // Tab bar is kDesktopRemoteTabBarHeight (28.0). Window title bar/borders vary by OS.
-            double widthOverhead = 0;
-            double heightOverhead = 0;
-            
-            if (isWindows) {
-                // In Original mode, always use _autoResizeWindow for precise sizing
-                final currentViewStyle = _ffi.canvasModel.viewStyle.style;
-                if (currentViewStyle == kRemoteViewStyleOriginal) {
-                    await _autoResizeWindow();
-                    return;
-                }
-                // For other modes, use the old logic
-                await _autoResizeWindow();
-                return;
-            } else if (isMacOS) {
-                heightOverhead = 28 + kDesktopRemoteTabBarHeight; // Title bar (approx 28) + Tab bar
-            } else if (isLinux) {
-                heightOverhead = 30 + kDesktopRemoteTabBarHeight; // Title bar (approx 30) + Tab bar
-            } else {
-                // Fallback
-                heightOverhead = 60;
-            }
-            
-            final targetWidth = remoteWidth + widthOverhead;
-            final targetHeight = remoteHeight + heightOverhead;
-            
-            // Get available screen size to ensure window doesn't exceed screen bounds
-            final screenRects = await getScreenRectList();
-            if (screenRects.isNotEmpty) {
-              // Use the primary screen or the first available one for bounds checking
-              final screen = screenRects[0];
-              // Allow up to 100% of screen size
-              final maxWidth = screen.width;
-              final maxHeight = screen.height;
-              
-              final finalWidth = targetWidth > maxWidth ? maxWidth : targetWidth;
-              final finalHeight = targetHeight > maxHeight ? maxHeight : targetHeight;
-              
-              debugPrint("Auto-resize: Resizing window to ${finalWidth}x${finalHeight}");
-              
-              // Get the window controller for this session
-              final windowId = stateGlobal.windowId;
-              final wc = WindowController.fromWindowId(windowId);
-              
-              // Always center the window after resizing
-              final screenCenter = Offset(
-                screen.left + (screen.width - finalWidth) / 2,
-                screen.top + (screen.height - finalHeight) / 2
-              );
-              final newFrame = Rect.fromLTWH(
-                screenCenter.dx,
-                screenCenter.dy,
-                finalWidth,
-                finalHeight
-              );
-              
-              await wc.setFrame(newFrame);
-              debugPrint("Auto-resize: Window resized and centered successfully");
-            }
-          } else if (rect == null) {
-             debugPrint("Auto-resize: displaysRect is null");
-          }
-        } catch (e) {
-          debugPrint('Failed to auto-resize window: $e');
-        }
-      });
-    }
-
     _ffi.canvasModel.initializeEdgeScrollFallback(this);
     _ffi.start(
       widget.id,
@@ -250,8 +157,6 @@ class _RemotePageState extends State<RemotePage>
           sessionId: sessionId, arg: kOptionZoomCursor);
     });
     DesktopMultiWindow.addListener(this);
-    _ffi.canvasModel.addListener(_onCanvasModelChanged);
-    _lastViewStyle = _ffi.canvasModel.viewStyle.style;
     // if (!_isCustomCursorInited) {
     //   customCursorController.registerNeedUpdateCursorCallback(
     //       (String? lastKey, String? currentKey) async {
@@ -287,6 +192,16 @@ class _RemotePageState extends State<RemotePage>
   }
 
   @override
+  void onWindowFocus() {
+    super.onWindowFocus();
+    // See [onWindowBlur].
+    if (isWindows) {
+      _isWindowBlur = false;
+    }
+    stateGlobal.isFocused.value = true;
+  }
+
+  @override
   void onWindowRestore() {
     super.onWindowRestore();
     // On windows, we use `onWindowRestore` way to handle window restore from
@@ -297,16 +212,6 @@ class _RemotePageState extends State<RemotePage>
     if (!isLinux) {
       WakelockPlus.enable();
     }
-  }
-
-  @override
-  void onWindowFocus() {
-    super.onWindowFocus();
-    // See [onWindowBlur].
-    if (isWindows) {
-      _isWindowBlur = false;
-    }
-    stateGlobal.isFocused.value = true;
   }
 
   // When the window is unminimized, onWindowMaximize or onWindowRestore can be called when the old state was maximized or not.
@@ -342,55 +247,6 @@ class _RemotePageState extends State<RemotePage>
     }
   }
 
-  void _onCanvasModelChanged() {
-    final currentStyle = _ffi.canvasModel.viewStyle.style;
-    if (currentStyle != _lastViewStyle) {
-      _lastViewStyle = currentStyle;
-      if (isWindows && currentStyle == kRemoteViewStyleOriginal) {
-         _autoResizeWindow();
-      }
-    }
-  }
-
-  Future<void> _autoResizeWindow() async {
-      if (!isWindows || !mounted || stateGlobal.fullscreen.isTrue) return;
-      
-      final rect = _ffi.ffiModel.displaysRect();
-      if (rect == null) return;
-      
-      final screenRects = await getScreenRectList();
-      if (screenRects.isNotEmpty) {
-          final screen = screenRects[0];
-          
-          // Use dynamic tab bar height from stateGlobal
-          // This automatically handles fullscreen (0) vs normal mode (28.0)
-          final tabBarHeight = stateGlobal.tabBarHeight;
-          final dpr = MediaQuery.of(context).devicePixelRatio;
-          
-          // rect.width/height are physical pixels of the remote screen video
-          // We pass physical pixels directly to C++ to avoid rounding/scaling errors
-          final physicalRemoteWidth = rect.width;
-          final physicalRemoteHeight = rect.height;
-          
-          double finalW = physicalRemoteWidth;
-          // Add physical tab bar height
-          double finalH = physicalRemoteHeight + (tabBarHeight * dpr);
-          
-          // Clamp to screen size (physical)
-          // screen.width/height are logical pixels, convert to physical
-          final screenWidthPhysical = screen.width * dpr;
-          final screenHeightPhysical = screen.height * dpr;
-          
-          if (finalW > screenWidthPhysical) finalW = screenWidthPhysical;
-          if (finalH > screenHeightPhysical) finalH = screenHeightPhysical;
-          
-          // Pass physical pixels to C++ and request centering
-          await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH, center: true, physical: true);
-          
-          debugPrint("Auto-resize: Window resized (content) to ${finalW}x${finalH} (physical) (remote: ${rect.width}x${rect.height}, tabBar: $tabBarHeight, dpr: $dpr) and centered");
-      }
-  }
-
   @override
   Future<void> dispose() async {
     final closeSession = closeSessionOnDispose.remove(widget.id) ?? true;
@@ -403,7 +259,6 @@ class _RemotePageState extends State<RemotePage>
       // ensure we leave this session, this is a double check
       _ffi.inputModel.enterOrLeave(false);
     }
-    _ffi.canvasModel.removeListener(_onCanvasModelChanged);
     DesktopMultiWindow.removeListener(this);
     _ffi.dialogManager.hideMobileActionsOverlay();
     _ffi.imageModel.disposeImage();
@@ -516,6 +371,11 @@ class _RemotePageState extends State<RemotePage>
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: Obx(() {
+        // Auto resize window when remote resolution changes or view style changes
+        if (isWindows && mounted && stateGlobal.fullscreen.isFalse) {
+          _autoResizeWindow();
+        }
+
         final imageReady = _ffi.ffiModel.pi.isSet.isTrue &&
             _ffi.ffiModel.waitForFirstImage.isFalse;
         if (imageReady) {
@@ -542,6 +402,52 @@ class _RemotePageState extends State<RemotePage>
         }
       }),
     );
+  }
+
+  Future<void> _autoResizeWindow() async {
+      if (!isWindows || !mounted || stateGlobal.fullscreen.isTrue) return;
+      
+      final rect = _ffi.ffiModel.displaysRect();
+      if (rect == null) return;
+      
+      // Check if we should auto-resize
+      // 1. When resolution changes (rect changes)
+      // 2. When view style is 'original' (1:1)
+      // We can check if the current window size matches the content size
+      
+      final viewStyle = _ffi.canvasModel.viewStyle;
+      if (viewStyle.style != kRemoteViewStyleOriginal) return;
+
+      final screens = await window_size.getScreenList();
+      if (screens.isNotEmpty) {
+          final screen = screens[0];
+          
+          final tabBarHeight = stateGlobal.tabBarHeight;
+          final dpr = MediaQuery.of(context).devicePixelRatio;
+          
+          // rect.width/height are physical pixels of the remote screen video
+          final physicalRemoteWidth = rect.width;
+          final physicalRemoteHeight = rect.height;
+          
+          double finalW = physicalRemoteWidth;
+          // Add physical tab bar height
+          double finalH = physicalRemoteHeight + (tabBarHeight * dpr);
+          
+          // Clamp to screen size (physical)
+          // screen.frame is in logical pixels (usually), but window_size might return physical or logical depending on platform.
+          // On Windows, window_size usually returns scaled logical pixels (DPI aware).
+          // But we are working with physical pixels for setWindowContentSize.
+          // So we should convert screen size to physical.
+          
+          final screenWidthPhysical = screen.frame.width * dpr;
+          final screenHeightPhysical = screen.frame.height * dpr;
+          
+          if (finalW > screenWidthPhysical) finalW = screenWidthPhysical;
+          if (finalH > screenHeightPhysical) finalH = screenHeightPhysical;
+          
+          // Pass physical pixels to C++ and request centering
+          await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH, center: true, physical: true);
+      }
   }
 
   @override
@@ -956,106 +862,29 @@ class _ImagePaintState extends State<ImagePaint> {
         ],
       );
     }
-    if (layoutSize.width < size.width) {
-      widget = RawScrollbar(
-        thickness: kScrollbarThickness,
-        thumbColor: Colors.grey,
-        controller: horizontal,
-        thumbVisibility: false,
-        trackVisibility: false,
-        notificationPredicate: layoutSize.height < size.height
-            ? (notification) => notification.depth == 1
-            : defaultScrollNotificationPredicate,
-        child: widget,
-      );
-    }
-    if (layoutSize.height < size.height) {
-      widget = RawScrollbar(
-        thickness: kScrollbarThickness,
-        thumbColor: Colors.grey,
+    return Scrollbar(
+      controller: horizontal,
+      thumbVisibility: true,
+      trackVisibility: true,
+      child: Scrollbar(
         controller: vertical,
-        thumbVisibility: false,
-        trackVisibility: false,
+        thumbVisibility: true,
+        trackVisibility: true,
+        notificationPredicate: (notification) => notification.depth == 1,
         child: widget,
-      );
-    }
-
-    return Container(
-      child: widget,
-      width: layoutSize.width,
-      height: layoutSize.height,
+      ),
     );
   }
 
   Widget _buildListener(Widget child) {
-    if (listenerBuilder != null) {
-      return listenerBuilder!(child);
-    } else {
-      return child;
-    }
-  }
-}
-
-class CursorPaint extends StatelessWidget {
-  final String id;
-  final RxBool zoomCursor;
-
-  const CursorPaint({
-    Key? key,
-    required this.id,
-    required this.zoomCursor,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final m = Provider.of<CursorModel>(context);
-    final c = Provider.of<CanvasModel>(context);
-    double hotx = m.hotx;
-    double hoty = m.hoty;
-    if (m.image == null) {
-      if (preDefaultCursor.image != null) {
-        hotx = preDefaultCursor.image!.width / 2;
-        hoty = preDefaultCursor.image!.height / 2;
-      }
-    }
-
-    double cx = c.x;
-    double cy = c.y;
-    if (c.viewStyle.style == kRemoteViewStyleOriginal &&
-        c.scrollStyle == ScrollStyle.scrollbar) {
-      final rect = c.parent.target!.ffiModel.rect;
-      if (rect == null) {
-        // unreachable!
-        debugPrint('unreachable! The displays rect is null.');
-        return Container();
-      }
-      if (cx < 0) {
-        final imageWidth = rect.width * c.scale;
-        cx = -imageWidth * c.scrollX;
-      }
-      if (cy < 0) {
-        final imageHeight = rect.height * c.scale;
-        cy = -imageHeight * c.scrollY;
-      }
-    }
-
-    double x = (m.x - hotx) * c.scale + cx;
-    double y = (m.y - hoty) * c.scale + cy;
-    double scale = 1.0;
-    final isViewOriginal = c.viewStyle.style == kRemoteViewStyleOriginal;
-    if (zoomCursor.value || isViewOriginal) {
-      x = m.x - hotx + cx / c.scale;
-      y = m.y - hoty + cy / c.scale;
-      scale = c.scale;
-    }
-
-    return CustomPaint(
-      painter: ImagePainter(
-        image: m.image ?? preDefaultCursor.image,
-        x: x,
-        y: y,
-        scale: scale,
-      ),
+    return Listener(
+      onPointerSignal: (event) {
+        if (event is PointerScrollEvent) {
+          final c = Provider.of<CanvasModel>(context, listen: false);
+          c.onPointerScroll(event);
+        }
+      },
+      child: child,
     );
   }
 }
