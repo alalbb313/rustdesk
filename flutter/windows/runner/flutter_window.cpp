@@ -87,11 +87,6 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                     }
                 }
                 
-                // Convert logical pixels to physical pixels
-                double scaleFactor = dpi / 96.0;
-                int physicalWidth = static_cast<int>(logicalWidth * scaleFactor);
-                int physicalHeight = static_cast<int>(logicalHeight * scaleFactor);
-                
                 // Get window style
                 LONG style = GetWindowLong(hwnd, GWL_STYLE);
                 LONG exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
@@ -105,13 +100,13 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                     physical = std::get<bool>(physicalIt->second);
                 }
 
-                int physicalWidth, physicalHeight;
+                int physicalWidth = 0;
+                int physicalHeight = 0;
+
                 if (physical) {
                     physicalWidth = static_cast<int>(std::round(std::get<double>(widthIt->second)));
                     physicalHeight = static_cast<int>(std::round(std::get<double>(heightIt->second)));
                 } else {
-                    double logicalWidth = std::get<double>(widthIt->second);
-                    double logicalHeight = std::get<double>(heightIt->second);
                     physicalWidth = static_cast<int>(std::round(logicalWidth * dpi / 96.0));
                     physicalHeight = static_cast<int>(std::round(logicalHeight * dpi / 96.0));
                 }
