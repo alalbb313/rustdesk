@@ -45,13 +45,13 @@ class RdPlatformChannel {
   }
 
   /// Set window content size (client area)
-  Future<void> setWindowContentSize(double width, double height, {bool center = false}) {
+  Future<void> setWindowContentSize(double width, double height, {bool center = false, bool physical = false}) {
     assert(isWindows);
     if (kDebugMode) {
-      print("[Window ${kWindowId ?? 'Main'}] setWindowContentSize to ${width}x${height} center=$center");
+      print("[Window ${kWindowId ?? 'Main'}] setWindowContentSize to ${width}x${height} center=$center physical=$physical");
     }
     return _hostMethodChannel.invokeMethod(
-        "setWindowContentSize", {"width": width, "height": height, "center": center});
+        "setWindowContentSize", {"width": width, "height": height, "center": center, "physical": physical});
   }
 
   /// Terminate .app manually.

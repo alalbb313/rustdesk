@@ -99,6 +99,23 @@ void RegisterHostChannel(flutter::BinaryMessenger* messenger, HWND hwnd) {
                 // Ensure we calculate the rect for a normal (restored) window, not maximized
                 style &= ~WS_MAXIMIZE;
 
+                bool physical = false;
+                auto physicalIt = argsMap.find(flutter::EncodableValue("physical"));
+                if (physicalIt != argsMap.end() && std::holds_alternative<bool>(physicalIt->second)) {
+                    physical = std::get<bool>(physicalIt->second);
+                }
+
+                int physicalWidth, physicalHeight;
+                if (physical) {
+                    physicalWidth = static_cast<int>(std::round(std::get<double>(widthIt->second)));
+                    physicalHeight = static_cast<int>(std::round(std::get<double>(heightIt->second)));
+                } else {
+                    double logicalWidth = std::get<double>(widthIt->second);
+                    double logicalHeight = std::get<double>(heightIt->second);
+                    physicalWidth = static_cast<int>(std::round(logicalWidth * dpi / 96.0));
+                    physicalHeight = static_cast<int>(std::round(logicalHeight * dpi / 96.0));
+                }
+
                 // Calculate window rect including borders
                 RECT rect = {0, 0, physicalWidth, physicalHeight};
                 

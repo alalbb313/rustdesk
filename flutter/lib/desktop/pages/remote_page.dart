@@ -367,23 +367,27 @@ class _RemotePageState extends State<RemotePage>
           final tabBarHeight = stateGlobal.tabBarHeight;
           final dpr = MediaQuery.of(context).devicePixelRatio;
           
-          // Convert remote physical pixels to local logical pixels
           // rect.width/height are physical pixels of the remote screen video
-          final logicalRemoteWidth = rect.width / dpr;
-          final logicalRemoteHeight = rect.height / dpr;
+          // We pass physical pixels directly to C++ to avoid rounding/scaling errors
+          final physicalRemoteWidth = rect.width;
+          final physicalRemoteHeight = rect.height;
           
-          double finalW = logicalRemoteWidth;
-          double finalH = logicalRemoteHeight + tabBarHeight;
+          double finalW = physicalRemoteWidth;
+          // Add physical tab bar height
+          double finalH = physicalRemoteHeight + (tabBarHeight * dpr);
           
-          // Clamp to screen size (logical)
-          // screen.width/height are logical pixels
-          if (finalW > screen.width) finalW = screen.width;
-          if (finalH > screen.height) finalH = screen.height;
+          // Clamp to screen size (physical)
+          // screen.width/height are logical pixels, convert to physical
+          final screenWidthPhysical = screen.width * dpr;
+          final screenHeightPhysical = screen.height * dpr;
           
-          // Pass logical pixels to C++ and request centering
-          await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH, center: true);
+          if (finalW > screenWidthPhysical) finalW = screenWidthPhysical;
+          if (finalH > screenHeightPhysical) finalH = screenHeightPhysical;
           
-          debugPrint("Auto-resize: Window resized (content) to ${finalW}x${finalH} (remote: ${rect.width}x${rect.height}, tabBar: $tabBarHeight, dpr: $dpr) and centered");
+          // Pass physical pixels to C++ and request centering
+          await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH, center: true, physical: true);
+          
+          debugPrint("Auto-resize: Window resized (content) to ${finalW}x${finalH} (physical) (remote: ${rect.width}x${rect.height}, tabBar: $tabBarHeight, dpr: $dpr) and centered");
       }
   }
 
