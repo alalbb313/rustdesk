@@ -1597,7 +1597,6 @@ class _ResolutionsMenuState extends State<_ResolutionsMenu> {
     if (!resolutions.any((e) =>
         e.width == display.originalWidth &&
         e.height == display.originalHeight)) {
-
       return Offstage();
     }
     return Offstage(
@@ -2398,7 +2397,6 @@ class CkbMenuButton extends StatelessWidget {
   final FFI? ffi;
   const CkbMenuButton(
       {Key? key,
-
       required this.value,
       required this.onChanged,
       required this.child,
@@ -2744,4 +2742,3 @@ class EdgeThicknessControl extends StatelessWidget {
     return slider;
   }
 }
-
