@@ -19,8 +19,6 @@ import 'package:scroll_pos/scroll_pos.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-import 'package:flutter_hbb/utils/platform_channel.dart';
-
 import '../../utils/multi_window_manager.dart';
 
 const double _kTabBarHeight = kDesktopRemoteTabBarHeight;
@@ -445,20 +443,6 @@ class _DesktopTabState extends State<DesktopTab>
         }
         controller.clear();
       }
-      // After clearing tabs or if already empty, close the window properly
-      if (kWindowType != null) {
-        await rustDeskWinManager.call(WindowType.Main,
-            kWindowEventCloseSubWindow, {"id": kWindowId!, "type": kWindowType!.index});
-        await windowController.setPreventClose(false);
-        await windowController.hide();
-        if (isMacOS) {
-          // MacOS needs time to properly cleanup sessions (audio, network, etc.)
-          // This matches the original macOSWindowClose delay
-          await Future.delayed(const Duration(milliseconds: 700));
-        }
-        await windowController.close();
-        return;
-      }
       await windowController.hide();
       await rustDeskWinManager
           .call(WindowType.Main, kWindowEventHide, {"id": kWindowId!});
@@ -489,7 +473,7 @@ class _DesktopTabState extends State<DesktopTab>
       }
       // macOS specific workaround, the window is not hiding when in fullscreen.
       if (isMacOS && await windowManager.isFullScreen()) {
-        await RdPlatformChannel.instance.setFullscreen(false);
+        await windowManager.setFullScreen(false);
         await macOSWindowClose(
           () async => await windowManager.isFullScreen(),
           mainWindowClose,
@@ -506,7 +490,7 @@ class _DesktopTabState extends State<DesktopTab>
 
         if (await onWindowCloseButton?.call() ?? true) {
           if (await controller.isFullScreen()) {
-            await RdPlatformChannel.instance.setFullscreen(false);
+            await controller.setFullscreen(false);
             stateGlobal.setFullscreen(false, procWnd: false);
             await macOSWindowClose(
               () async => await controller.isFullScreen(),
@@ -898,56 +882,105 @@ Future<bool> closeConfirmDialog() async {
     return CustomAlertDialog(
       title: Row(children: [
         const Icon(Icons.warning_amber_sharp,
-            color: Colors.redAccent, size: 28),
+            color: Colors.redAccent, size: 20),
         const SizedBox(width: 10),
-        Text(translate("Warning")),
+        Text(translate('Warning')),
       ]),
       content: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(translate("Disconnect all devices?")),
-            CheckboxListTile(
-              contentPadding: const EdgeInsets.all(0),
-              dense: true,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(
-                translate("Confirm before closing multiple tabs"),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(translate('Close all?')),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Checkbox(
+                value: confirm,
+                onChanged: (v) {
+                  setState(() {
+                    confirm = v!;
+                  });
+                },
               ),
-              value: confirm,
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => confirm = v);
-              },
-            )
-          ]),
-      // confirm checkbox
+              Text(translate('Don\'t show again')),
+            ],
+          ),
+        ],
+      ),
       actions: [
-        dialogButton("Cancel", onPressed: close, isOutline: true),
-        dialogButton("OK", onPressed: submit),
+        dialogButton('Cancel', onPressed: () => close(false), isOutline: true),
+        dialogButton('OK', onPressed: submit),
       ],
       onSubmit: submit,
-      onCancel: close,
+      onCancel: () => close(false),
     );
   });
-  return res == true;
+  return res ?? false;
 }
 
-class _ListView extends StatelessWidget {
+class ActionIcon extends StatefulWidget {
+  final String message;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool isClose;
+
+  const ActionIcon(
+      {Key? key,
+      required this.message,
+      required this.icon,
+      required this.onTap,
+      required this.isClose})
+      : super(key: key);
+
+  @override
+  State<ActionIcon> createState() => _ActionIconState();
+}
+
+class _ActionIconState extends State<ActionIcon> {
+  bool _isHover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+        message: translate(widget.message),
+        child: InkWell(
+          onTap: widget.onTap,
+          onHover: (value) {
+            setState(() {
+              _isHover = value;
+            });
+          },
+          child: Container(
+            width: 40,
+            height: _kTabBarHeight,
+            decoration: BoxDecoration(
+              color: _isHover
+                  ? (widget.isClose ? Colors.red : Colors.grey.withOpacity(0.2))
+                  : null,
+            ),
+            child: Icon(
+              widget.icon,
+              size: _kActionIconSize,
+              color: _isHover && widget.isClose ? Colors.white : null,
+            ),
+          ),
+        ));
+  }
+}
+
+class _ListView extends StatefulWidget {
   final DesktopTabController controller;
   final RxList<String> invisibleTabKeys;
-
   final TabBuilder? tabBuilder;
   final TabMenuBuilder? tabMenuBuilder;
   final LabelGetter? labelGetter;
   final double? maxLabelWidth;
   final Color? selectedTabBackgroundColor;
-  final Color? selectedBorderColor;
   final Color? unSelectedTabBackgroundColor;
+  final Color? selectedBorderColor;
 
-  Rx<DesktopTabState> get state => controller.state;
-
-  _ListView({
+  const _ListView({
+    Key? key,
     required this.controller,
     required this.invisibleTabKeys,
     this.tabBuilder,
@@ -957,119 +990,80 @@ class _ListView extends StatelessWidget {
     this.selectedTabBackgroundColor,
     this.unSelectedTabBackgroundColor,
     this.selectedBorderColor,
-  });
+  }) : super(key: key);
 
-  /// Check whether to show ListView
-  ///
-  /// Conditions:
-  /// - hide single item when only has one item (home) on [DesktopTabPage].
-  bool isHideSingleItem() {
-    return state.value.tabs.length == 1 &&
-            controller.tabType == DesktopTabType.main ||
-        controller.tabType == DesktopTabType.install;
-  }
+  @override
+  State<_ListView> createState() => _ListViewState();
+}
 
-  onVisibilityChanged(VisibilityInfo info) {
-    final key = (info.key as ValueKey).value;
-    if (info.visibleFraction < 0.75) {
-      if (!invisibleTabKeys.contains(key)) {
-        invisibleTabKeys.add(key);
-      }
-      invisibleTabKeys.removeWhere((key) =>
-          controller.state.value.tabs.where((e) => e.key == key).isEmpty);
-    } else {
-      invisibleTabKeys.remove(key);
-    }
+class _ListViewState extends State<_ListView> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.state.value.scrollController.groupController =
+        _scrollController;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() => ListView(
-        controller: state.value.scrollController,
-        scrollDirection: Axis.horizontal,
-        shrinkWrap: true,
-        physics: const BouncingScrollPhysics(),
-        children: isHideSingleItem()
-            ? List.empty()
-            : state.value.tabs.asMap().entries.map((e) {
-                final index = e.key;
-                final tab = e.value;
-                final label = labelGetter == null
-                    ? Rx<String>(tab.label)
-                    : labelGetter!(tab.label);
-                final child = VisibilityDetector(
-                  key: ValueKey(tab.key),
-                  onVisibilityChanged: onVisibilityChanged,
-                  child: _Tab(
-                    key: ValueKey(tab.key),
-                    index: index,
-                    tabInfoKey: tab.key,
-                    label: label,
-                    tabType: controller.tabType,
-                    selectedIcon: tab.selectedIcon,
-                    unselectedIcon: tab.unselectedIcon,
-                    closable: tab.closable,
-                    selected: state.value.selected,
-                    onClose: () {
-                      if (tab.onTabCloseButton != null) {
-                        tab.onTabCloseButton!();
-                      } else {
-                        controller.remove(index);
-                      }
-                    },
-                    onTap: () {
-                      controller.jumpTo(index);
-                      tab.onTap?.call();
-                    },
-                    tabBuilder: tabBuilder,
-                    tabMenuBuilder: tabMenuBuilder,
-                    maxLabelWidth: maxLabelWidth,
-                    selectedTabBackgroundColor: selectedTabBackgroundColor ??
-                        MyTheme.tabbar(context).selectedTabBackgroundColor,
-                    unSelectedTabBackgroundColor: unSelectedTabBackgroundColor,
-                    selectedBorderColor: selectedBorderColor,
-                  ),
+    return Obx(() {
+      final state = widget.controller.state.value;
+      return VisibilityDetector(
+          key: Key('tabbar_list_view'),
+          onVisibilityChanged: (info) {
+            if (info.visibleFraction == 1.0) {
+              if (state.scrollController.hasClients &&
+                  state.scrollController.itemCount > state.selected) {
+                state.scrollController
+                    .scrollToItem(state.selected, center: false, animate: true);
+              }
+            }
+          },
+          child: ListView.builder(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              itemCount: state.tabs.length,
+              itemBuilder: (context, index) {
+                return _TabItem(
+                  index: index,
+                  controller: widget.controller,
+                  invisibleTabKeys: widget.invisibleTabKeys,
+                  tabBuilder: widget.tabBuilder,
+                  tabMenuBuilder: widget.tabMenuBuilder,
+                  labelGetter: widget.labelGetter,
+                  maxLabelWidth: widget.maxLabelWidth,
+                  selectedTabBackgroundColor: widget.selectedTabBackgroundColor,
+                  unSelectedTabBackgroundColor:
+                      widget.unSelectedTabBackgroundColor,
+                  selectedBorderColor: widget.selectedBorderColor,
                 );
-                return GestureDetector(
-                  onPanStart: (e) {},
-                  child: child,
-                );
-              }).toList()));
+              }));
+    });
   }
 }
 
-class _Tab extends StatefulWidget {
+class _TabItem extends StatefulWidget {
   final int index;
-  final String tabInfoKey;
-  final Rx<String> label;
-  final DesktopTabType tabType;
-  final IconData? selectedIcon;
-  final IconData? unselectedIcon;
-  final bool closable;
-  final int selected;
-  final Function() onClose;
-  final Function() onTap;
+  final DesktopTabController controller;
+  final RxList<String> invisibleTabKeys;
   final TabBuilder? tabBuilder;
   final TabMenuBuilder? tabMenuBuilder;
+  final LabelGetter? labelGetter;
   final double? maxLabelWidth;
   final Color? selectedTabBackgroundColor;
   final Color? unSelectedTabBackgroundColor;
   final Color? selectedBorderColor;
 
-  const _Tab({
+  const _TabItem({
     Key? key,
     required this.index,
-    required this.tabInfoKey,
-    required this.label,
-    required this.tabType,
-    this.selectedIcon,
-    this.unselectedIcon,
+    required this.controller,
+    required this.invisibleTabKeys,
     this.tabBuilder,
     this.tabMenuBuilder,
-    required this.closable,
-    required this.selected,
-    required this.onClose,
-    required this.onTap,
+    this.labelGetter,
     this.maxLabelWidth,
     this.selectedTabBackgroundColor,
     this.unSelectedTabBackgroundColor,
@@ -1077,481 +1071,229 @@ class _Tab extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<_Tab> createState() => _TabState();
+  State<_TabItem> createState() => _TabItemState();
 }
 
-class _TabState extends State<_Tab> with RestorationMixin {
-  final RestorableBool restoreHover = RestorableBool(false);
-
-  Widget _buildTabContent() {
-    bool showIcon =
-        widget.selectedIcon != null && widget.unselectedIcon != null;
-    bool isSelected = widget.index == widget.selected;
-
-    final icon = Offstage(
-        offstage: !showIcon,
-        child: Icon(
-          isSelected ? widget.selectedIcon : widget.unselectedIcon,
-          size: _kIconSize,
-          color: isSelected
-              ? MyTheme.tabbar(context).selectedTabIconColor
-              : MyTheme.tabbar(context).unSelectedTabIconColor,
-        ).paddingOnly(right: 5));
-    final labelWidget = Obx(() {
-      return ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: widget.maxLabelWidth ?? 200),
-          child: Tooltip(
-            message:
-                widget.tabType == DesktopTabType.main ? '' : widget.label.value,
-            child: Text(
-              widget.tabType == DesktopTabType.main
-                  ? translate(widget.label.value)
-                  : widget.label.value,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: isSelected
-                      ? MyTheme.tabbar(context).selectedTextColor
-                      : MyTheme.tabbar(context).unSelectedTextColor),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ));
-    });
-
-    Widget getWidgetWithBuilder() {
-      if (widget.tabBuilder == null) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            icon,
-            labelWidget,
-          ],
-        );
-      } else {
-        return widget.tabBuilder!(
-          widget.tabInfoKey,
-          icon,
-          labelWidget,
-          TabThemeConf(iconSize: _kIconSize),
-        );
-      }
-    }
-
-    return Listener(
-      onPointerDown: (e) {
-        if (e.kind != ui.PointerDeviceKind.mouse) {
-          return;
-        }
-        if (e.buttons == 2) {
-          if (widget.tabMenuBuilder != null) {
-            showRightMenu(
-              (cacel) {
-                return widget.tabMenuBuilder!(widget.tabInfoKey);
-              },
-              target: e.position,
-            );
-          }
-        }
-      },
-      child: getWidgetWithBuilder(),
-    );
-  }
+class _TabItemState extends State<_TabItem> {
+  bool _isHover = false;
 
   @override
   Widget build(BuildContext context) {
-    bool isSelected = widget.index == widget.selected;
-    bool showDivider =
-        widget.index != widget.selected - 1 && widget.index != widget.selected;
-    RxBool hover = restoreHover.value.obs;
-    return Ink(
-      child: InkWell(
-        onHover: (value) {
-          hover.value = value;
-          restoreHover.value = value;
-        },
-        onTap: () => widget.onTap(),
-        child: Container(
-            decoration: isSelected && widget.selectedBorderColor != null
-                ? BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: widget.selectedBorderColor!,
-                        width: 1,
-                      ),
-                    ),
-                  )
-                : null,
-            child: Container(
-              color: isSelected
-                  ? widget.selectedTabBackgroundColor
-                  : widget.unSelectedTabBackgroundColor,
-              child: Row(
-                children: [
-                  SizedBox(
-                      // _kTabBarHeight also displays normally
-                      height: _showTabBarBottomDivider(widget.tabType)
-                          ? _kTabBarHeight - 1
-                          : _kTabBarHeight,
-                      child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            _buildTabContent(),
-                            Obx((() => _CloseButton(
-                                  visible: hover.value && widget.closable,
-                                  tabSelected: isSelected,
-                                  onClose: () => widget.onClose(),
-                                )))
-                          ])).paddingOnly(left: 10, right: 5),
-                  Offstage(
-                    offstage: !showDivider,
-                    child: VerticalDivider(
-                      width: 1,
-                      indent: _kDividerIndent,
-                      endIndent: _kDividerIndent,
-                      color: MyTheme.tabbar(context).dividerColor,
-                    ),
-                  )
-                ],
-              ),
-            )),
-      ),
-    );
-  }
-
-  @override
-  String? get restorationId => "_Tab${widget.label.value}";
-
-  @override
-  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
-    registerForRestoration(restoreHover, 'restoreHover');
-  }
-}
-
-class _CloseButton extends StatelessWidget {
-  final bool visible;
-  final bool tabSelected;
-  final Function onClose;
-
-  const _CloseButton({
-    Key? key,
-    required this.visible,
-    required this.tabSelected,
-    required this.onClose,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-            width: _kIconSize,
-            child: () {
-              if (visible) {
-                return InkWell(
-                  hoverColor: MyTheme.tabbar(context).closeHoverColor,
-                  customBorder: const CircleBorder(),
-                  onTap: () => onClose(),
-                  child: Icon(
-                    Icons.close,
-                    size: _kIconSize,
-                    color: tabSelected
-                        ? MyTheme.tabbar(context).selectedIconColor
-                        : MyTheme.tabbar(context).unSelectedIconColor,
-                  ),
-                );
-              } else {
-                return Offstage();
+    return Obx(() {
+      final state = widget.controller.state.value;
+      // check if index is valid
+      if (widget.index >= state.tabs.length) return Offstage();
+      final tab = state.tabs[widget.index];
+      final selected = state.selected == widget.index;
+      final showClose = _isHover || selected;
+      final label = widget.labelGetter?.call(tab.key) ?? tab.label.obs;
+      return VisibilityDetector(
+          key: Key(tab.key),
+          onVisibilityChanged: (info) {
+            if (info.visibleFraction < 1.0) {
+              if (!widget.invisibleTabKeys.contains(tab.key)) {
+                widget.invisibleTabKeys.add(tab.key);
               }
-            }())
-        .paddingOnly(left: 10);
+            } else {
+              widget.invisibleTabKeys.remove(tab.key);
+            }
+          },
+          child: GestureDetector(
+              onTap: () {
+                widget.controller.jumpTo(widget.index);
+                tab.onTap?.call();
+              },
+              onSecondaryTapUp: (details) {
+                if (widget.tabMenuBuilder != null) {
+                  showRightMenu(
+                      (cancelFunc) => widget.tabMenuBuilder!(tab.key),
+                      target: details.globalPosition);
+                }
+              },
+              child: MouseRegion(
+                  onEnter: (event) {
+                    setState(() {
+                      _isHover = true;
+                    });
+                  },
+                  onExit: (event) {
+                    setState(() {
+                      _isHover = false;
+                    });
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? widget.selectedTabBackgroundColor ??
+                              Theme.of(context).cardColor
+                          : _isHover
+                              ? (widget.unSelectedTabBackgroundColor ??
+                                      Theme.of(context).canvasColor)
+                                  .withOpacity(0.8)
+                              : widget.unSelectedTabBackgroundColor ??
+                                  Theme.of(context).canvasColor,
+                      border: Border(
+                          right: BorderSide(
+                              color: Theme.of(context).dividerColor,
+                              width: 1.0),
+                          top: selected
+                              ? BorderSide(
+                                  color: widget.selectedBorderColor ??
+                                      Theme.of(context).primaryColor,
+                                  width: 2.0)
+                              : BorderSide.none),
+                    ),
+                    padding: EdgeInsets.only(
+                        left: _kDividerIndent,
+                        right: tab.closable ? 0 : _kDividerIndent),
+                    constraints: BoxConstraints(
+                        minWidth: 100,
+                        maxWidth: widget.maxLabelWidth ?? 240.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                            child: Row(
+                          children: [
+                            if (widget.tabBuilder != null)
+                              widget.tabBuilder!(
+                                  tab.key,
+                                  _buildIcon(tab, selected),
+                                  _buildLabel(label.value),
+                                  TabThemeConf(iconSize: _kIconSize))
+                            else ...[
+                              _buildIcon(tab, selected),
+                              SizedBox(width: 8),
+                              Expanded(child: _buildLabel(label.value))
+                            ]
+                          ],
+                        )),
+                        if (tab.closable)
+                          _TabCloseButton(
+                            onTap: () {
+                              if (tab.onTabCloseButton != null) {
+                                tab.onTabCloseButton!();
+                              } else {
+                                widget.controller.remove(widget.index);
+                              }
+                            },
+                            show: showClose,
+                          )
+                      ],
+                    ),
+                  ))));
+    });
+  }
+
+  Widget _buildIcon(TabInfo tab, bool selected) {
+    return Icon(
+      selected
+          ? tab.selectedIcon ?? tab.unselectedIcon
+          : tab.unselectedIcon ?? tab.selectedIcon,
+      size: _kIconSize,
+      color: selected ? Theme.of(context).primaryColor : null,
+    );
+  }
+
+  Widget _buildLabel(String label) {
+    return Text(
+      label,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: 13),
+    );
   }
 }
 
-class ActionIcon extends StatefulWidget {
-  final String? message;
-  final IconData icon;
-  final GestureTapCallback? onTap;
-  final GestureTapDownCallback? onTapDown;
-  final bool isClose;
-  final double iconSize;
-  final double boxSize;
+class _TabCloseButton extends StatefulWidget {
+  final VoidCallback onTap;
+  final bool show;
 
-  const ActionIcon(
-      {Key? key,
-      this.message,
-      required this.icon,
-      this.onTap,
-      this.onTapDown,
-      this.isClose = false,
-      this.iconSize = _kActionIconSize,
-      this.boxSize = _kTabBarHeight - 1})
+  const _TabCloseButton({Key? key, required this.onTap, required this.show})
       : super(key: key);
 
   @override
-  State<ActionIcon> createState() => _ActionIconState();
+  State<_TabCloseButton> createState() => _TabCloseButtonState();
 }
 
-class _ActionIconState extends State<ActionIcon> {
-  final hover = false.obs;
+class _TabCloseButtonState extends State<_TabCloseButton> {
+  bool _isHover = false;
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: widget.message != null ? translate(widget.message!) : "",
-      waitDuration: const Duration(seconds: 1),
-      child: InkWell(
-        hoverColor: widget.isClose
-            ? const Color.fromARGB(255, 196, 43, 28)
-            : MyTheme.tabbar(context).hoverColor,
-        onHover: (value) => hover.value = value,
-        onTap: widget.onTap,
-        onTapDown: widget.onTapDown,
-        child: SizedBox(
-          height: widget.boxSize,
-          width: widget.boxSize,
-          child: widget.onTap == null
-              ? Icon(
-                  widget.icon,
-                  color: Colors.grey,
-                  size: widget.iconSize,
-                )
-              : Obx(
-                  () => Icon(
-                    widget.icon,
-                    color: hover.value && widget.isClose
-                        ? Colors.white
-                        : MyTheme.tabbar(context).unSelectedIconColor,
-                    size: widget.iconSize,
-                  ),
-                ),
+    return InkWell(
+      onTap: widget.onTap,
+      onHover: (value) {
+        setState(() {
+          _isHover = value;
+        });
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 8),
+        padding: EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: _isHover ? Colors.grey.withOpacity(0.5) : null,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Opacity(
+          opacity: widget.show ? 1.0 : 0.0,
+          child: Icon(
+            Icons.close,
+            size: 14,
+          ),
         ),
       ),
     );
   }
 }
 
-class AddButton extends StatelessWidget {
-  const AddButton({
-    Key? key,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ActionIcon(
-        message: 'New Connection',
-        icon: IconFont.add,
-        onTap: () => rustDeskWinManager.call(
-            WindowType.Main, kWindowMainWindowOnTop, ""),
-        isClose: false);
-  }
-}
-
-class _TabDropDownButton extends StatefulWidget {
+class _TabDropDownButton extends StatelessWidget {
   final DesktopTabController controller;
   final List<String> tabkeys;
   final LabelGetter? labelGetter;
 
   const _TabDropDownButton(
-      {required this.controller, required this.tabkeys, this.labelGetter});
-
-  @override
-  State<_TabDropDownButton> createState() => _TabDropDownButtonState();
-}
-
-class _TabDropDownButtonState extends State<_TabDropDownButton> {
-  var position = RelativeRect.fromLTRB(0, 0, 0, 0);
+      {Key? key,
+      required this.controller,
+      required this.tabkeys,
+      this.labelGetter})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    List<String> sortedKeys = widget.controller.state.value.tabs
-        .where((e) => widget.tabkeys.contains(e.key))
-        .map((e) => e.key)
-        .toList();
-    return ActionIcon(
-      onTapDown: (details) {
-        final x = details.globalPosition.dx;
-        final y = details.globalPosition.dy;
-        position = RelativeRect.fromLTRB(x, y, x, y);
+    return PopupMenuButton<String>(
+      tooltip: translate('Hidden Tabs'),
+      icon: Icon(Icons.arrow_drop_down),
+      padding: EdgeInsets.zero,
+      itemBuilder: (context) {
+        return tabkeys.map((key) {
+          final tab =
+              controller.state.value.tabs.firstWhere((element) => element.key == key);
+          final label = labelGetter?.call(key) ?? tab.label.obs;
+          return PopupMenuItem<String>(
+            value: key,
+            child: Obx(() => Text(
+                  label.value,
+                  style: TextStyle(fontSize: 13),
+                )),
+          );
+        }).toList();
       },
-      icon: Icons.arrow_drop_down,
-      onTap: () {
-        showMenu(
-          context: context,
-          position: position,
-          items: sortedKeys.map((e) {
-            var label = e;
-            final tabInfo = widget.controller.state.value.tabs
-                .firstWhereOrNull((element) => element.key == e);
-            if (tabInfo != null) {
-              label = tabInfo.label;
-            }
-            if (widget.labelGetter != null) {
-              label = widget.labelGetter!(e).value;
-            }
-            var index = widget.controller.state.value.tabs
-                .indexWhere((t) => t.key == e);
-            label = '${index + 1}. $label';
-            final menuHover = false.obs;
-            final btnHover = false.obs;
-            return PopupMenuItem<String>(
-              value: e,
-              height: 32,
-              onTap: () {
-                widget.controller.jumpToByKey(e);
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
-                }
-              },
-              child: MouseRegion(
-                onHover: (event) => setState(() => menuHover.value = true),
-                onExit: (event) => setState(() => menuHover.value = false),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(child: Text(label)),
-                    ),
-                    Obx(
-                      () {
-                        if (tabInfo?.onTabCloseButton != null &&
-                            menuHover.value) {
-                          return InkWell(
-                              onTap: () {
-                                tabInfo?.onTabCloseButton?.call();
-                                if (Navigator.of(context).canPop()) {
-                                  Navigator.of(context).pop();
-                                }
-                              },
-                              child: MouseRegion(
-                                  cursor: SystemMouseCursors.click,
-                                  onHover: (event) =>
-                                      setState(() => btnHover.value = true),
-                                  onExit: (event) =>
-                                      setState(() => btnHover.value = false),
-                                  child: Icon(Icons.close,
-                                      color:
-                                          btnHover.value ? Colors.red : null)));
-                        } else {
-                          return Offstage();
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        );
+      onSelected: (key) {
+        controller.jumpToByKey(key);
       },
     );
   }
 }
 
-bool _showTabBarBottomDivider(DesktopTabType tabType) {
-  return tabType == DesktopTabType.main || tabType == DesktopTabType.install;
+bool _showTabBarBottomDivider(DesktopTabType type) {
+  return type == DesktopTabType.main ||
+      type == DesktopTabType.install ||
+      type == DesktopTabType.cm;
 }
 
-class TabbarTheme extends ThemeExtension<TabbarTheme> {
-  final Color? selectedTabIconColor;
-  final Color? unSelectedTabIconColor;
-  final Color? selectedTextColor;
-  final Color? unSelectedTextColor;
-  final Color? selectedIconColor;
-  final Color? unSelectedIconColor;
-  final Color? dividerColor;
-  final Color? hoverColor;
-  final Color? closeHoverColor;
-  final Color? selectedTabBackgroundColor;
-
-  const TabbarTheme(
-      {required this.selectedTabIconColor,
-      required this.unSelectedTabIconColor,
-      required this.selectedTextColor,
-      required this.unSelectedTextColor,
-      required this.selectedIconColor,
-      required this.unSelectedIconColor,
-      required this.dividerColor,
-      required this.hoverColor,
-      required this.closeHoverColor,
-      required this.selectedTabBackgroundColor});
-
-  static const light = TabbarTheme(
-      selectedTabIconColor: MyTheme.accent,
-      unSelectedTabIconColor: Color.fromARGB(255, 162, 203, 241),
-      selectedTextColor: Colors.black,
-      unSelectedTextColor: Color.fromARGB(255, 112, 112, 112),
-      selectedIconColor: Color.fromARGB(255, 26, 26, 26),
-      unSelectedIconColor: Color.fromARGB(255, 96, 96, 96),
-      dividerColor: Color.fromARGB(255, 238, 238, 238),
-      hoverColor: Colors.white54,
-      closeHoverColor: Colors.white,
-      selectedTabBackgroundColor: Colors.white54);
-
-  static const dark = TabbarTheme(
-      selectedTabIconColor: MyTheme.accent,
-      unSelectedTabIconColor: Color.fromARGB(255, 30, 65, 98),
-      selectedTextColor: Colors.white,
-      unSelectedTextColor: Color.fromARGB(255, 192, 192, 192),
-      selectedIconColor: Color.fromARGB(255, 192, 192, 192),
-      unSelectedIconColor: Color.fromARGB(255, 255, 255, 255),
-      dividerColor: Color.fromARGB(255, 64, 64, 64),
-      hoverColor: Colors.black26,
-      closeHoverColor: Colors.black,
-      selectedTabBackgroundColor: Colors.black26);
-
-  @override
-  ThemeExtension<TabbarTheme> copyWith({
-    Color? selectedTabIconColor,
-    Color? unSelectedTabIconColor,
-    Color? selectedTextColor,
-    Color? unSelectedTextColor,
-    Color? selectedIconColor,
-    Color? unSelectedIconColor,
-    Color? dividerColor,
-    Color? hoverColor,
-    Color? closeHoverColor,
-    Color? selectedTabBackgroundColor,
-  }) {
-    return TabbarTheme(
-      selectedTabIconColor: selectedTabIconColor ?? this.selectedTabIconColor,
-      unSelectedTabIconColor:
-          unSelectedTabIconColor ?? this.unSelectedTabIconColor,
-      selectedTextColor: selectedTextColor ?? this.selectedTextColor,
-      unSelectedTextColor: unSelectedTextColor ?? this.unSelectedTextColor,
-      selectedIconColor: selectedIconColor ?? this.selectedIconColor,
-      unSelectedIconColor: unSelectedIconColor ?? this.unSelectedIconColor,
-      dividerColor: dividerColor ?? this.dividerColor,
-      hoverColor: hoverColor ?? this.hoverColor,
-      closeHoverColor: closeHoverColor ?? this.closeHoverColor,
-      selectedTabBackgroundColor:
-          selectedTabBackgroundColor ?? this.selectedTabBackgroundColor,
-    );
+String getDesktopTabLabel(String peerId, String alias) {
+  if (alias.isNotEmpty) {
+    return alias;
   }
-
-  @override
-  ThemeExtension<TabbarTheme> lerp(
-      ThemeExtension<TabbarTheme>? other, double t) {
-    if (other is! TabbarTheme) {
-      return this;
-    }
-    return TabbarTheme(
-      selectedTabIconColor:
-          Color.lerp(selectedTabIconColor, other.selectedTabIconColor, t),
-      unSelectedTabIconColor:
-          Color.lerp(unSelectedTabIconColor, other.unSelectedTabIconColor, t),
-      selectedTextColor:
-          Color.lerp(selectedTextColor, other.selectedTextColor, t),
-      unSelectedTextColor:
-          Color.lerp(unSelectedTextColor, other.unSelectedTextColor, t),
-      selectedIconColor:
-          Color.lerp(selectedIconColor, other.selectedIconColor, t),
-      unSelectedIconColor:
-          Color.lerp(unSelectedIconColor, other.unSelectedIconColor, t),
-      dividerColor: Color.lerp(dividerColor, other.dividerColor, t),
-      hoverColor: Color.lerp(hoverColor, other.hoverColor, t),
-      closeHoverColor: Color.lerp(closeHoverColor, other.closeHoverColor, t),
-      selectedTabBackgroundColor: Color.lerp(
-          selectedTabBackgroundColor, other.selectedTabBackgroundColor, t),
-    );
-  }
-
-  static color(BuildContext context) {
-    return Theme.of(context).extension<ColorThemeExtension>()!;
-  }
+  return peerId;
 }
