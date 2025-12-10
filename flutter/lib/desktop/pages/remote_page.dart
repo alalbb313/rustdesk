@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
-import 'package:window_size/window_size.dart' as window_size;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
@@ -23,11 +22,9 @@ import '../../utils/image.dart';
 import '../widgets/remote_toolbar.dart';
 import '../widgets/kb_layout_type_chooser.dart';
 import '../widgets/tabbar_widget.dart';
-import '../../utils/multi_window_manager.dart';
 
 import 'package:flutter_hbb/native/custom_cursor.dart'
     if (dart.library.html) 'package:flutter_hbb/web/custom_cursor.dart';
-import '../../utils/platform_channel.dart';
 
 final SimpleWrapper<bool> _firstEnterImage = SimpleWrapper(false);
 
@@ -371,11 +368,6 @@ class _RemotePageState extends State<RemotePage>
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: Obx(() {
-        // Auto resize window when remote resolution changes or view style changes
-        if (isWindows && mounted && stateGlobal.fullscreen.isFalse) {
-          _autoResizeWindow();
-        }
-
         final imageReady = _ffi.ffiModel.pi.isSet.isTrue &&
             _ffi.ffiModel.waitForFirstImage.isFalse;
         if (imageReady) {
@@ -402,52 +394,6 @@ class _RemotePageState extends State<RemotePage>
         }
       }),
     );
-  }
-
-  Future<void> _autoResizeWindow() async {
-      if (!isWindows || !mounted || stateGlobal.fullscreen.isTrue) return;
-      
-      final rect = _ffi.ffiModel.displaysRect();
-      if (rect == null) return;
-      
-      // Check if we should auto-resize
-      // 1. When resolution changes (rect changes)
-      // 2. When view style is 'original' (1:1)
-      // We can check if the current window size matches the content size
-      
-      final viewStyle = _ffi.canvasModel.viewStyle;
-      if (viewStyle.style != kRemoteViewStyleOriginal) return;
-
-      final screens = await window_size.getScreenList();
-      if (screens.isNotEmpty) {
-          final screen = screens[0];
-          
-          final tabBarHeight = stateGlobal.tabBarHeight;
-          final dpr = MediaQuery.of(context).devicePixelRatio;
-          
-          // rect.width/height are physical pixels of the remote screen video
-          final physicalRemoteWidth = rect.width;
-          final physicalRemoteHeight = rect.height;
-          
-          double finalW = physicalRemoteWidth;
-          // Add physical tab bar height
-          double finalH = physicalRemoteHeight + (tabBarHeight * dpr);
-          
-          // Clamp to screen size (physical)
-          // screen.frame is in logical pixels (usually), but window_size might return physical or logical depending on platform.
-          // On Windows, window_size usually returns scaled logical pixels (DPI aware).
-          // But we are working with physical pixels for setWindowContentSize.
-          // So we should convert screen size to physical.
-          
-          final screenWidthPhysical = screen.frame.width * dpr;
-          final screenHeightPhysical = screen.frame.height * dpr;
-          
-          if (finalW > screenWidthPhysical) finalW = screenWidthPhysical;
-          if (finalH > screenHeightPhysical) finalH = screenHeightPhysical;
-          
-          // Pass physical pixels to C++ and request centering
-          await RdPlatformChannel.instance.setWindowContentSize(finalW, finalH, center: true, physical: true);
-      }
   }
 
   @override
@@ -862,17 +808,34 @@ class _ImagePaintState extends State<ImagePaint> {
         ],
       );
     }
-    return Scrollbar(
-      controller: horizontal,
-      thumbVisibility: true,
-      trackVisibility: true,
-      child: Scrollbar(
-        controller: vertical,
-        thumbVisibility: true,
-        trackVisibility: true,
-        notificationPredicate: (notification) => notification.depth == 1,
+    if (layoutSize.width < size.width) {
+      widget = RawScrollbar(
+        thickness: kScrollbarThickness,
+        thumbColor: Colors.grey,
+        controller: horizontal,
+        thumbVisibility: false,
+        trackVisibility: false,
+        notificationPredicate: layoutSize.height < size.height
+            ? (notification) => notification.depth == 1
+            : defaultScrollNotificationPredicate,
         child: widget,
-      ),
+      );
+    }
+    if (layoutSize.height < size.height) {
+      widget = RawScrollbar(
+        thickness: kScrollbarThickness,
+        thumbColor: Colors.grey,
+        controller: vertical,
+        thumbVisibility: false,
+        trackVisibility: false,
+        child: widget,
+      );
+    }
+
+    return Container(
+      child: widget,
+      width: layoutSize.width,
+      height: layoutSize.height,
     );
   }
 
