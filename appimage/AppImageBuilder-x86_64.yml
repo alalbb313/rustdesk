@@ -2,10 +2,7 @@
 version: 1
 script:
  - rm -rf ./AppDir || true
- - bsdtar -zxvf rustdesk.deb
- - tar -xvf ./data.tar.xz
- - mkdir ./AppDir
- - mv ./usr ./AppDir/usr
+ - dpkg-deb -x rustdesk.deb ./AppDir
  # 32x32 icon
  - for i in {32,64,128}; do mkdir -p ./AppDir/usr/share/icons/hicolor/$i\x$i/apps/; cp ../res/$i\x$i.png ./AppDir/usr/share/icons/hicolor/$i\x$i/apps/rustdesk.png; done
  - mkdir -p ./AppDir/usr/share/icons/hicolor/scalable/apps/; cp ../res/scalable.svg ./AppDir/usr/share/icons/hicolor/scalable/apps/rustdesk.svg
