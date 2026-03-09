@@ -204,10 +204,21 @@ jobs:
 
       - name: Build rustdesk
         env:
-          RUSTC_WRAPPER: sccache
           SCCACHE_GHA_ENABLED: "true"
           CARGO_BUILD_JOBS: "4"
         run: |
+          # Try to enable sccache, skip if unavailable
+          try {
+            sccache --start-server 2>$null
+            if ($LASTEXITCODE -eq 0) {
+              $env:RUSTC_WRAPPER = "sccache"
+              Write-Host "sccache enabled"
+            } else {
+              Write-Host "sccache unavailable, building without cache"
+            }
+          } catch {
+            Write-Host "sccache unavailable, building without cache"
+          }
           # Windows: build RustDesk
           python3 .\build.py --portable --hwcodec --flutter --vram --skip-portable-pack
           mv ./flutter/build/windows/x64/runner/Release ./rustdesk
@@ -782,10 +793,17 @@ jobs:
 
       - name: Build rustdesk
         env:
-          RUSTC_WRAPPER: sccache
           SCCACHE_GHA_ENABLED: "true"
           CARGO_BUILD_JOBS: "4"
+        shell: bash
         run: |
+          # Try to enable sccache, skip if unavailable
+          if sccache --start-server 2>/dev/null && sccache --show-stats 2>/dev/null; then
+            export RUSTC_WRAPPER=sccache
+            echo "sccache enabled"
+          else
+            echo "sccache unavailable, building without cache"
+          fi
           if [ "${{ matrix.job.target }}" = "aarch64-apple-darwin" ]; then
             MIN_MACOS_VERSION="12.3"
             sed -i -e "s/MACOSX_DEPLOYMENT_TARGET\=[0-9]*.[0-9]*/MACOSX_DEPLOYMENT_TARGET=${MIN_MACOS_VERSION}/" build.py
@@ -1032,10 +1050,16 @@ jobs:
 
       - name: Build rustdesk
         env:
-          RUSTC_WRAPPER: sccache
           SCCACHE_GHA_ENABLED: "true"
           CARGO_BUILD_JOBS: "4"
         run: |
+          # Try to enable sccache, skip if unavailable
+          if sccache --start-server 2>/dev/null && sccache --show-stats 2>/dev/null; then
+            export RUSTC_WRAPPER=sccache
+            echo "sccache enabled"
+          else
+            echo "sccache unavailable, building without cache"
+          fi
           ./build.py --flutter --hwcodec
 
       - name: Rename rustdesk
