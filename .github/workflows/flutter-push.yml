@@ -1,0 +1,17 @@
+name: Flutter Push Build
+
+on:
+  push:
+    branches:
+      - Jerry
+  workflow_dispatch:
+
+jobs:
+  run-flutter-push-build:
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: "nightly"
+      build-full: false
+      build-msi: false
