@@ -22,6 +22,7 @@ use std::{
     ops::{Deref, DerefMut},
     sync::{
         atomic::{AtomicBool, Ordering},
+        mpsc,
     },
     thread,
     time::{self, Duration, Instant},
