@@ -940,6 +940,7 @@ jobs:
             libxcb-xfixes0-dev \
             libxdo-dev \
             libxfixes-dev \
+            libunwind-dev \
             llvm-dev \
             nasm \
             ninja-build \
