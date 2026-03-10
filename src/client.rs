@@ -2247,7 +2247,7 @@ impl LoginConfigHandler {
                     .cloned()
                     .unwrap_or_else(|| UserDefaultConfig::read("custom-fps"));
                 if !custom_fps.is_empty() {
-                    let custom_fps = custom_fps.parse().unwrap_or(30);
+                    let custom_fps = custom_fps.parse().unwrap_or(360);
                     // Removed the 30 FPS limit to allow user's custom FPS settings
                     // Previously: if !allow_more && custom_fps > 30 { custom_fps = 30; }
                     msg.custom_fps = custom_fps;

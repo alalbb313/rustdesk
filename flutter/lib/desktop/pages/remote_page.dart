@@ -121,6 +121,17 @@ class _RemotePageState extends State<RemotePage>
           _ffi.ffiModel.pi.platform, _ffi.dialogManager);
       _ffi.recordingModel
           .updateStatus(bind.sessionGetIsRecording(sessionId: _ffi.sessionId));
+      // Auto-adjust window size to match remote display resolution on first frame
+      Future.delayed(Duration(milliseconds: 100), () {
+        if (mounted) {
+          final screenAdjustor = ScreenAdjustor(
+            id: widget.id,
+            ffi: _ffi,
+            cbExitFullscreen: () {},
+          );
+          screenAdjustor.doAdjustWindow(context);
+        }
+      });
     });
     _ffi.canvasModel.initializeEdgeScrollFallback(this);
     _ffi.start(
