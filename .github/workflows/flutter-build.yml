@@ -163,7 +163,7 @@ jobs:
           prefix-key: ${{ matrix.job.os }}
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.7
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
@@ -751,7 +751,7 @@ jobs:
           prefix-key: ${{ matrix.job.os }}
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.7
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
@@ -1022,7 +1022,7 @@ jobs:
           prefix-key: linux-x86_64
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.7
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
