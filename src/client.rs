@@ -2240,9 +2240,11 @@ impl LoginConfigHandler {
             };
             msg.custom_image_quality = quality << 8;
         }
-        // Always read and send custom_fps regardless of quality mode.
+        // Read and send custom_fps regardless of quality mode.
         // This ensures the user's FPS setting from UserDefaultConfig takes effect
         // even when the per-peer PeerConfig has a different quality mode saved.
+        // Only send custom_fps when the user has actually configured a value.
+        // If no custom FPS is set, leave it to the adaptive algorithm.
         #[cfg(feature = "flutter")]
         {
             let custom_fps = self
@@ -2251,16 +2253,12 @@ impl LoginConfigHandler {
                 .cloned()
                 .unwrap_or_else(|| UserDefaultConfig::read("custom-fps"));
             if !custom_fps.is_empty() {
-                let custom_fps: i32 = custom_fps.parse().unwrap_or(360);
+                let custom_fps: i32 = custom_fps.parse().unwrap_or(30);
                 msg.custom_fps = custom_fps;
                 *self.custom_fps.lock().unwrap() = Some(custom_fps as _);
             }
-        }
-        // Fallback: if no custom_fps was set, default to 360 FPS
-        #[cfg(feature = "flutter")]
-        if msg.custom_fps == 0 {
-            msg.custom_fps = 360;
-            *self.custom_fps.lock().unwrap() = Some(360);
+            // If no custom_fps was configured, leave self.custom_fps as None
+            // so that the adaptive FPS algorithm in fps_control() can work.
         }
         let view_only = self.get_toggle_option("view-only");
         if view_only {
