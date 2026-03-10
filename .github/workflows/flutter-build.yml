@@ -1033,18 +1033,31 @@ jobs:
 
       - name: Install vcpkg dependencies
         run: |
-          if ! $VCPKG_ROOT/vcpkg \
-            install \
-            --x-install-root="$VCPKG_ROOT/installed"; then
-            find "${VCPKG_ROOT}/" -name "*.log" | while read -r _1; do
-              echo "$_1:"
-              echo "======"
-              cat "$_1"
-              echo "======"
-              echo ""
-            done
-            exit 1
-          fi
+          MAX_RETRIES=3
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "=== vcpkg install attempt $attempt of $MAX_RETRIES ==="
+            if $VCPKG_ROOT/vcpkg \
+              install \
+              --x-install-root="$VCPKG_ROOT/installed"; then
+              echo "vcpkg install succeeded on attempt $attempt"
+              break
+            fi
+            echo "vcpkg install failed on attempt $attempt"
+            if [ "$attempt" -eq "$MAX_RETRIES" ]; then
+              echo "=== All $MAX_RETRIES attempts failed, dumping logs ==="
+              find "${VCPKG_ROOT}/" -name "*.log" | while read -r _1; do
+                echo "$_1:"
+                echo "======"
+                cat "$_1"
+                echo "======"
+                echo ""
+              done
+              exit 1
+            fi
+            echo "Cleaning buildtrees and retrying in 10 seconds..."
+            rm -rf "${VCPKG_ROOT}/buildtrees/vcpkg-tool-meson" || true
+            sleep 10
+          done
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-x64-linux-rel-out.log" || true
         shell: bash
 
