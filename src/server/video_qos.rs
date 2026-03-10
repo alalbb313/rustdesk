@@ -396,9 +396,14 @@ impl VideoQoS {
     fn highest_fps(&self) -> u32 {
         let user_fps = |u: &UserData| {
             let mut fps = u.custom_fps.unwrap_or(FPS);
-            if let Some(auto_adjust_fps) = u.auto_adjust_fps {
-                if fps == 0 || auto_adjust_fps < fps {
-                    fps = auto_adjust_fps;
+            // Only apply auto_adjust_fps when no custom_fps is explicitly set.
+            // When the user has set a custom FPS, it should take absolute priority
+            // and not be overridden by the client's decode-speed-based auto adjustment.
+            if u.custom_fps.is_none() {
+                if let Some(auto_adjust_fps) = u.auto_adjust_fps {
+                    if fps == 0 || auto_adjust_fps < fps {
+                        fps = auto_adjust_fps;
+                    }
                 }
             }
             fps
