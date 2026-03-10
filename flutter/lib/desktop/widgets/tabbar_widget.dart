@@ -444,8 +444,12 @@ class _DesktopTabState extends State<DesktopTab>
         controller.clear();
       }
       await windowController.hide();
+      // Use kWindowEventCloseSubWindow to fully remove the window from
+      // the window manager, preventing zombie windows that block reconnection.
+      // kWindowEventHide would keep the window in _inactiveWindows, but the
+      // session/FFI is already disposed, so the window can't be reused.
       await rustDeskWinManager
-          .call(WindowType.Main, kWindowEventHide, {"id": kWindowId!});
+          .call(WindowType.Main, kWindowEventCloseSubWindow, {"id": kWindowId!, "type": kWindowType?.index ?? WindowType.Unknown.index});
     }
 
     macOSWindowClose(

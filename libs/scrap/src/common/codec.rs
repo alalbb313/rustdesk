@@ -837,7 +837,8 @@ impl Decoder {
         } else if codec == "h265" {
             PreferCodec::H265
         } else {
-            PreferCodec::Auto
+            // Default to H265 when no explicit codec preference is set
+            PreferCodec::H265
         };
         let chroma = if options.get("i444") == Some(&"Y".to_string()) {
             Chroma::I444
