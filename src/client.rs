@@ -2239,24 +2239,24 @@ impl LoginConfigHandler {
                 quality
             };
             msg.custom_image_quality = quality << 8;
-            #[cfg(feature = "flutter")]
-            {
-                let custom_fps = self
-                    .options
-                    .get("custom-fps")
-                    .cloned()
-                    .unwrap_or_else(|| UserDefaultConfig::read("custom-fps"));
-                if !custom_fps.is_empty() {
-                    let custom_fps = custom_fps.parse().unwrap_or(360);
-                    // Removed the 30 FPS limit to allow user's custom FPS settings
-                    // Previously: if !allow_more && custom_fps > 30 { custom_fps = 30; }
-                    msg.custom_fps = custom_fps;
-                    *self.custom_fps.lock().unwrap() = Some(custom_fps as _);
-                }
+        }
+        // Always read and send custom_fps regardless of quality mode.
+        // This ensures the user's FPS setting from UserDefaultConfig takes effect
+        // even when the per-peer PeerConfig has a different quality mode saved.
+        #[cfg(feature = "flutter")]
+        {
+            let custom_fps = self
+                .options
+                .get("custom-fps")
+                .cloned()
+                .unwrap_or_else(|| UserDefaultConfig::read("custom-fps"));
+            if !custom_fps.is_empty() {
+                let custom_fps: i32 = custom_fps.parse().unwrap_or(360);
+                msg.custom_fps = custom_fps;
+                *self.custom_fps.lock().unwrap() = Some(custom_fps as _);
             }
         }
-        // Always send custom_fps=360 to ensure server allows max FPS
-        // This prevents the client adaptive branch from limiting FPS based on decode speed
+        // Fallback: if no custom_fps was set, default to 360 FPS
         #[cfg(feature = "flutter")]
         if msg.custom_fps == 0 {
             msg.custom_fps = 360;
