@@ -819,7 +819,8 @@ impl Decoder {
     fn preference(id: Option<&str>) -> (PreferCodec, Chroma) {
         let id = id.unwrap_or_default();
         if id.is_empty() {
-            return (PreferCodec::Auto, Chroma::I420);
+            // Default to H265 for best quality when no peer config exists
+            return (PreferCodec::H265, Chroma::I420);
         }
         let options = PeerConfig::load(id).options;
         let codec = options

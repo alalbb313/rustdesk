@@ -2255,6 +2255,13 @@ impl LoginConfigHandler {
                 }
             }
         }
+        // Always send custom_fps=360 to ensure server allows max FPS
+        // This prevents the client adaptive branch from limiting FPS based on decode speed
+        #[cfg(feature = "flutter")]
+        if msg.custom_fps == 0 {
+            msg.custom_fps = 360;
+            *self.custom_fps.lock().unwrap() = Some(360);
+        }
         let view_only = self.get_toggle_option("view-only");
         if view_only {
             msg.disable_keyboard = BoolOption::Yes.into();
