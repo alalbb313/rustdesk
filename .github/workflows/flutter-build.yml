@@ -1077,7 +1077,8 @@ jobs:
           pushd appimage
           cp ../rustdesk-${{ env.VERSION }}-x86_64.deb ./rustdesk.deb
           appimage-builder --recipe ./AppImageBuilder-x86_64.yml --skip-tests
-          mv RustDesk-*.AppImage ../rustdesk-${{ env.VERSION }}-x86_64.AppImage
+          ls -la *.AppImage || true
+          mv *ustDesk*.AppImage ../rustdesk-${{ env.VERSION }}-x86_64.AppImage 2>/dev/null || mv *ustdesk*.AppImage ../rustdesk-${{ env.VERSION }}-x86_64.AppImage
           popd
 
       - name: Upload artifacts
